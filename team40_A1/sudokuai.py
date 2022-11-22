@@ -17,8 +17,16 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         super().__init__()
 
     def compute_best_move(self, game_state: GameState) -> None:
-        N = game_state.board.N
+        N = game_state.board.N    
 
+        def checkEmpty(board, N):
+            emptyCells = []
+            for k in range(N**2):
+                i,j = SudokuBoard.f2rc(board, k)
+                if board.get(i,j) == SudokuBoard.empty:
+                    emptyCells.append([i,j])
+            return emptyCells
+        
         # TODO: implement a way to generate all the legal moves from a given game state / board position
 
         def checkColumn(i, j, value):
@@ -49,8 +57,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     and checkRow(i, j, value) \
                     and checkBlock(i, j, value)
 
-        all_moves = [Move(i, j, value) for i in range(N) for j in range(N)
-                     for value in range(1, N+1) if possible(i, j, value)]
+        all_moves = [Move(cell[0], cell[1], value) for cell in checkEmpty(game_state.board, N)
+                     for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
         # TODO: Implement an evaluation function that assigns a numerical score to any game state
 
