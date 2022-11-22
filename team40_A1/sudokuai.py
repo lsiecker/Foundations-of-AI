@@ -27,7 +27,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     emptyCells.append([i,j])
             print(emptyCells)
             return emptyCells
-
+        
         def checkColumn(i, j, value):
             for col in range(N):
                 if game_state.board.get(col, j) == value:
@@ -75,8 +75,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return True
 
         def possible(i, j, value):
-            return game_state.board.get(i, j) == SudokuBoard.empty \
-                    and not TabooMove(i, j, value) in game_state.taboo_moves \
+            return not TabooMove(i, j, value) in game_state.taboo_moves \
                     and checkColumn(i, j, value) \
                     and checkRow(i, j, value) \
                     and checkBlock(i, j, value)
