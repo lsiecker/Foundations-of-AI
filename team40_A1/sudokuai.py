@@ -21,9 +21,33 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         # TODO: implement a way to generate all the legal moves from a given game state / board position
 
+        def checkColumn(i, j, value):
+            for col in range(N):
+                if game_state.board.get(col, j) == value:
+                    return False
+            return True
+        
+        def checkRow(i, j, value):
+            for row in range(N):
+                if game_state.board.get(i, row) == value:
+                    return False
+            return True
+        
+        def checkBlock(i, j, value):
+            x = i - i % game_state.board.m
+            y = j - j % game_state.board.n
+            for col in range(game_state.board.m):
+                for row in range(game_state.board.n):
+                    if game_state.board.get(x+col, y+row) == value:
+                        return False
+            return True
+
         def possible(i, j, value):
             return game_state.board.get(i, j) == SudokuBoard.empty \
-                   and not TabooMove(i, j, value) in game_state.taboo_moves
+                    and not TabooMove(i, j, value) in game_state.taboo_moves \
+                    and checkColumn(i, j, value) \
+                    and checkRow(i, j, value) \
+                    and checkBlock(i, j, value)
 
         all_moves = [Move(i, j, value) for i in range(N) for j in range(N)
                      for value in range(1, N+1) if possible(i, j, value)]
