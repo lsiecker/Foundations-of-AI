@@ -20,6 +20,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         N = game_state.board.N    
 
         def checkEmpty(board, N):
+            ''' Function that returns a list of empty cells for the current board '''
             emptyCells = []
             for k in range(N**2):
                 i,j = SudokuBoard.f2rc(board, k)
@@ -29,18 +30,21 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return emptyCells
         
         def checkColumn(i, j, value):
+            ''' Function that returns a boolean value whether or not the input value fits in the column '''
             for col in range(N):
                 if game_state.board.get(col, j) == value:
                     return False
             return True
         
         def checkRow(i, j, value):
+            ''' Function that returns a boolean value whether or not the input value fits in the row '''
             for row in range(N):
                 if game_state.board.get(i, row) == value:
                     return False
             return True
         
         def checkBlock(i, j, value):
+            ''' Function that returns a boolean value whether or not the input value fits in the block '''
             x = i - i % game_state.board.m
             y = j - j % game_state.board.n
             for col in range(game_state.board.m):
@@ -50,6 +54,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return True
         
         def completeColumn(i, j):
+            ''' Function that returns a boolean value whether or not the column will be filled if i, j is filled '''
             for col in range(N):
                 if game_state.board.get(col, j) == SudokuBoard.empty \
                         and col != i:
@@ -57,6 +62,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return True
         
         def completeRow(i, j):
+            ''' Function that returns a boolean value whether or not the row will be filled if i, j is filled '''
             for row in range(N):
                 if game_state.board.get(i, row) == SudokuBoard.empty \
                         and row != j:
@@ -64,6 +70,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return True
         
         def completeBlock(i, j):
+            ''' Function that returns a boolean value whether or not the block will be filled if i, j is filled '''
             x = i - i % game_state.board.m
             y = j - j % game_state.board.n
             for col in range(game_state.board.m):
@@ -75,17 +82,18 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return True
 
         def possible(i, j, value):
+            ''' Function that returns a boolean value whether or not this input is a possible move '''
             return not TabooMove(i, j, value) in game_state.taboo_moves \
                     and checkColumn(i, j, value) \
                     and checkRow(i, j, value) \
                     and checkBlock(i, j, value)
 
+        ''' List all_moves contains all the possible moves for the current game_state ''' 
         all_moves = [Move(cell[0], cell[1], value) for cell in checkEmpty(game_state.board, N)
                      for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-        
-        # TODO: Implement an evaluation function that assigns a numerical score to any game state
         def evaluate(move):
+            ''' Function that returns a numerical score for a given game state '''
             return completeRow(move.i, move.j) + completeColumn(move.i, move.j)+ completeBlock(move.i, move.j)
 
         # TODO: Implement a variant of the minimax tree search algorithm
