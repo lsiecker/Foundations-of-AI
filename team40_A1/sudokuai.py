@@ -2,6 +2,7 @@
 #  Software License, (See accompanying file LICENSE or copy at
 #  https://www.gnu.org/licenses/gpl-3.0.txt)
 
+import copy
 import random
 import time
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
@@ -19,14 +20,14 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def compute_best_move(self, game_state: GameState) -> None:
         N = game_state.board.N    
 
-        def checkEmpty(board, N):
+        def checkEmpty(board):
             ''' Function that returns a list of empty cells for the current board '''
             emptyCells = []
             for k in range(N**2):
                 i,j = SudokuBoard.f2rc(board, k)
                 if board.get(i,j) == SudokuBoard.empty:
                     emptyCells.append([i,j])
-            print(emptyCells)
+            # print(emptyCells)
             return emptyCells
         
         def checkColumn(i, j, value):
@@ -76,8 +77,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             for col in range(game_state.board.m):
                 for row in range(game_state.board.n):
                     if game_state.board.get(x+col, y+row) == SudokuBoard.empty \
-                            and x+col != i \
-                            and y+row != j:
+                            and (x+col != i or y+row != j):
                         return False
             return True
 
@@ -89,23 +89,32 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     and checkBlock(i, j, value)
 
         ''' List all_moves contains all the possible moves for the current game_state ''' 
-        all_moves = [Move(cell[0], cell[1], value) for cell in checkEmpty(game_state.board, N)
+        all_moves = [Move(cell[0], cell[1], value) for cell in checkEmpty(game_state.board)
                      for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-        def evaluate(move):
-            ''' Function that returns a numerical score for a given game state '''
-            return completeRow(move.i, move.j) + completeColumn(move.i, move.j)+ completeBlock(move.i, move.j)
+        def evaluate(state):
+            ''' Return numerical evaluation of state '''
+            ''' Check how many fillable cells are in the state'''
+            cells = checkEmpty(state.board)
+            best_value = 0
+            best_cell = random.choice(all_moves)
+            for cell in all_moves:
+                value = completeRow(cell.i, cell.j) + completeColumn(cell.i, cell.j) + completeBlock(cell.i, cell.j)
+                # print(str(cell) + " has value: " + str(value) + " | || | " + str(completeRow(cell[0], cell[1])) + " | " + str(completeColumn(cell[0], cell[1])) + " | " + str(completeBlock(cell[0], cell[1])))
+                if value > best_value:
+                    best_cell = cell
+                    best_value = value
+            return best_value, best_cell
 
-        # TODO: Implement a variant of the minimax tree search algorithm
+        # TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
         # --> Assign the best score at the moment to self.propose_move(), and update this every time
 
         best_move = random.choice(all_moves)
+        self.propose_move(best_move)
 
         while True:
-            if evaluate(all_moves[0]) < evaluate(best_move):
-                all_moves.remove[0]
-            else:
-                best_move = all_moves[0]
-            self.propose_move(best_move)
+            value, evaluated_move = evaluate(game_state)
+            self.propose_move(evaluated_move)
+            print("Proposed move: [" + str(evaluated_move.i) + ", " + str(evaluated_move.j) + "] => " + str(evaluated_move.value) + " | Reward: " + str(value))
             time.sleep(0.2)
 
