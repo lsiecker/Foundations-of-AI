@@ -88,32 +88,91 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     and checkRow(i, j, value) \
                     and checkBlock(i, j, value)
 
-        ''' List all_moves contains all the possible moves for the current game_state ''' 
-        all_moves = [Move(cell[0], cell[1], value) for cell in checkEmpty(game_state.board)
-                     for value in range(1, N+1) if possible(cell[0], cell[1], value)]
+        def get_all_moves(state):
+            ''' List all_moves contains all the possible moves for the current game_state ''' 
+            return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
+                        for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
         def evaluate(state):
             ''' Return numerical evaluation of state '''
             ''' Check how many fillable cells are in the state'''
             cells = checkEmpty(state.board)
             best_value = 0
-            best_cell = random.choice(all_moves)
-            for cell in all_moves:
+            best_cell = random.choice(get_all_moves(state))
+            for cell in get_all_moves(state):
                 value = completeRow(cell.i, cell.j) + completeColumn(cell.i, cell.j) + completeBlock(cell.i, cell.j)
                 # print(str(cell) + " has value: " + str(value) + " | || | " + str(completeRow(cell[0], cell[1])) + " | " + str(completeColumn(cell[0], cell[1])) + " | " + str(completeBlock(cell[0], cell[1])))
                 if value > best_value:
                     best_cell = cell
                     best_value = value
+                if best_value == 2:
+                    best_value = 3
+                elif best_value == 3:
+                    best_value = 7
             return best_value, best_cell
 
         # TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
         # --> Assign the best score at the moment to self.propose_move(), and update this every time
 
-        best_move = random.choice(all_moves)
-        self.propose_move(best_move)
+        def getChildren(state):
+            ''' Return list of states that follow from state '''
+            children = []
+            for move in get_all_moves(state):
+                state.board.put(int(move.i), int(move.j), int(move.value))
+                children.append(copy.deepcopy(state))
+                state.board.put(int(move.i), move.j, SudokuBoard.empty)
+            return children
+
+        def minimax(state, current_depth, max_depth, isMaximizingPlayer):
+            print("Current depth of node: " + str(current_depth-1))
+            print("Current board: " + str(state.board))
+
+            # If the current depth is the target depth, evaluate that state.
+            if current_depth == max_depth or len(checkEmpty(state.board)) == 1:
+                return evaluate(state)  # Returns score of the best next move for the input state
+            else: current_depth += 1
+
+            for child in getChildren(state):
+                if isMaximizingPlayer:
+                    print("Current player is maximizing at depth " + str(current_depth-1))
+                    best_value, best_move = minimax(child, current_depth, max_depth, False)
+                else:
+                    print("Current player is minimizing at depth " + str(current_depth-1))
+                    best_value, best_move = minimax(child, current_depth, max_depth, True)
+
+            return best_value, best_move
+            # if depth == 0:
+            #     return evaluate(state)
+
+            # children = getChildren(state)
+            # best_move = None
+            # current_value, current_move = evaluate(state)
+            # print("Diepte: " + str(depth))
+            # print(current_move)
+            # if isMaximizingPlayer:
+            #     best_value = float('-inf')
+            #     for child in children:
+            #         value, move = minimax(child, depth-1, False)
+            #         if (value + current_value) > best_value:
+            #             best_value = value + current_value
+            #             best_move = move
+            #             # print(best_move, best_value, depth, value, current_value, current_move)
+            # else:
+            #     best_value = float('inf')
+            #     for child in children:
+            #         value, move = minimax(child, depth-1, True)
+            #         if (value + current_value) < best_value:
+            #             best_value = value + current_value
+            #             best_move = move
+            #             # print(best_move, best_value, depth, value, current_value, current_move)
+            # return best_value, best_move
+
+        self.propose_move(random.choice(get_all_moves(game_state)))
+
+        # print(minimax(game_state, 3, True))
+        value, evaluated_move = minimax(game_state, 1, 3, True)
 
         while True:
-            value, evaluated_move = evaluate(game_state)
             self.propose_move(evaluated_move)
             print("Proposed move: [" + str(evaluated_move.i) + ", " + str(evaluated_move.j) + "] => " + str(evaluated_move.value) + " | Reward: " + str(value))
             time.sleep(0.2)
