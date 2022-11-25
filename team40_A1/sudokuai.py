@@ -94,10 +94,15 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         best_move = random.choice(all_moves)
 
         while True:
+            start = time.time()
             if evaluate(all_moves[0]) < evaluate(best_move):
                 all_moves.remove[0]
             else:
                 best_move = all_moves[0]
             self.propose_move(best_move)
+            end = time.time()
+            # score = self.propose_move(best_move)
+            # score = evaluate(best_move)
+            
             time.sleep(0.2)
 
