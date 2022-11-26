@@ -101,7 +101,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             best_cell = random.choice(get_all_moves(state))
             for cell in get_all_moves(state):
                 value = completeRow(cell.i, cell.j) + completeColumn(cell.i, cell.j) + completeBlock(cell.i, cell.j)
-                # print(str(cell) + " has value: " + str(value) + " | || | " + str(completeRow(cell[0], cell[1])) + " | " + str(completeColumn(cell[0], cell[1])) + " | " + str(completeBlock(cell[0], cell[1])))
+                print(str(cell) + " has value: " + str(value) + " | || | " + str(completeRow(cell.i, cell.j)) + " | " + str(completeColumn(cell.i, cell.j)) + " | " + str(completeBlock(cell.i, cell.j)))
                 if value > best_value:
                     best_cell = cell
                     best_value = value
@@ -109,6 +109,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     best_value = 3
                 elif best_value == 3:
                     best_value = 7
+            # print(best_value, best_cell)
             return best_value, best_cell
 
         # TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
@@ -123,22 +124,25 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 state.board.put(int(move.i), move.j, SudokuBoard.empty)
             return children
 
-        def minimax(state, current_depth, max_depth, isMaximizingPlayer):
+        def minimax(state, max_depth, current_depth = 1, isMaximizingPlayer = True, current_score = 0):
+            evaluated_score, evaluated_move = evaluate(state)
+            
             print("Current depth of node: " + str(current_depth-1))
+            print("Current score of node: " + str(current_score + evaluated_score) + " (" + str(current_score) + " + " + str(evaluated_score) + ")")
             print("Current board: " + str(state.board))
 
             # If the current depth is the target depth, evaluate that state.
             if current_depth == max_depth or len(checkEmpty(state.board)) == 1:
-                return evaluate(state)  # Returns score of the best next move for the input state
+                return current_score + evaluated_score, evaluated_move  # Returns score of the best next move for the input state
             else: current_depth += 1
 
             for child in getChildren(state):
                 if isMaximizingPlayer:
-                    print("Current player is maximizing at depth " + str(current_depth-1))
-                    best_value, best_move = minimax(child, current_depth, max_depth, False)
+                    print("Current player is maximizing at depth " + str(current_depth-2) + ("\n" * 2))
+                    best_value, best_move = minimax(child, max_depth, current_depth, False, current_score + evaluated_score)
                 else:
-                    print("Current player is minimizing at depth " + str(current_depth-1))
-                    best_value, best_move = minimax(child, current_depth, max_depth, True)
+                    print("Current player is minimizing at depth " + str(current_depth-2) + ("\n" * 2))
+                    best_value, best_move = minimax(child, max_depth, current_depth, True, current_score= + evaluated_score)
 
             return best_value, best_move
             # if depth == 0:
@@ -170,7 +174,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         self.propose_move(random.choice(get_all_moves(game_state)))
 
         # print(minimax(game_state, 3, True))
-        value, evaluated_move = minimax(game_state, 1, 3, True)
+        value, evaluated_move = minimax(game_state, 6)  # Give gamestate and the maximum depth of nodes
 
         while True:
             self.propose_move(evaluated_move)
