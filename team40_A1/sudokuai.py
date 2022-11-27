@@ -5,6 +5,7 @@
 import copy
 import random
 import time
+import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
 
@@ -20,160 +21,193 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def compute_best_move(self, game_state: GameState) -> None:
         N = game_state.board.N    
 
-        def checkEmpty(board):
-            ''' Function that returns a list of empty cells for the current board '''
+        def checkEmpty(board) -> list[int,int]:
+            """
+            Finds all the empty cells of the input board
+            @param board: a SudokuBoard stored as array of N**2 entries
+            """
             emptyCells = []
             for k in range(N**2):
                 i,j = SudokuBoard.f2rc(board, k)
                 if board.get(i,j) == SudokuBoard.empty:
                     emptyCells.append([i,j])
-            # print(emptyCells)
             return emptyCells
-        
-        def checkColumn(i, j, value):
-            ''' Function that returns a boolean value whether or not the input value fits in the column '''
-            for col in range(N):
-                if game_state.board.get(col, j) == value:
-                    return False
-            return True
-        
-        def checkRow(i, j, value):
-            ''' Function that returns a boolean value whether or not the input value fits in the row '''
-            for row in range(N):
-                if game_state.board.get(i, row) == value:
-                    return False
-            return True
-        
-        def checkBlock(i, j, value):
-            ''' Function that returns a boolean value whether or not the input value fits in the block '''
-            x = i - i % game_state.board.m
-            y = j - j % game_state.board.n
-            for col in range(game_state.board.m):
-                for row in range(game_state.board.n):
-                    if game_state.board.get(x+col, y+row) == value:
-                        return False
-            return True
-        
-        def completeColumn(i, j):
-            ''' Function that returns a boolean value whether or not the column will be filled if i, j is filled '''
-            for col in range(N):
-                if game_state.board.get(col, j) == SudokuBoard.empty \
-                        and col != i:
-                    return False
-            return True
-        
-        def completeRow(i, j):
-            ''' Function that returns a boolean value whether or not the row will be filled if i, j is filled '''
-            for row in range(N):
-                if game_state.board.get(i, row) == SudokuBoard.empty \
-                        and row != j:
-                    return False
-            return True
-        
-        def completeBlock(i, j):
-            ''' Function that returns a boolean value whether or not the block will be filled if i, j is filled '''
-            x = i - i % game_state.board.m
-            y = j - j % game_state.board.n
-            for col in range(game_state.board.m):
-                for row in range(game_state.board.n):
-                    if game_state.board.get(x+col, y+row) == SudokuBoard.empty \
-                            and (x+col != i or y+row != j):
-                        return False
-            return True
 
-        def possible(i, j, value):
-            ''' Function that returns a boolean value whether or not this input is a possible move '''
-            return not TabooMove(i, j, value) in game_state.taboo_moves \
-                    and checkColumn(i, j, value) \
-                    and checkRow(i, j, value) \
-                    and checkBlock(i, j, value)
+        def getAllPossibleMoves(state) -> list[Move]:
+            """
+            Finds a list of all possible moves for a given game state
+            @param state: a game state containing a SudokuBoard object
+            """
 
-        def get_all_moves(state):
-            ''' List all_moves contains all the possible moves for the current game_state ''' 
+            def possible(i, j, value) -> bool:
+                """
+                Checks whether the given value at position (i,j) is valid for all regions
+                    and not a previously tried wrong move
+                @param i: A row value in the range [0, ..., N)
+                @param j: A column value in the range [0, ..., N)
+                @param value: A value in the range [1, ..., N]
+                """
+
+                def checkColumn(i, j, value) -> bool:
+                    """
+                    Checks whether the given value at position (i,j) is valid for the column
+                        i.e. finds if the value already exists in the column
+                    @param i: A row value in the range [0, ..., N)
+                    @param j: A column value in the range [0, ..., N)
+                    @param value: A value in the range [1, ..., N]
+                    """
+                    for col in range(N):
+                        if game_state.board.get(col, j) == value:
+                            return False
+                    return True
+            
+                def checkRow(i, j, value) -> bool:
+                    """
+                    Checks whether the given value at position (i,j) is valid for the row
+                        i.e. finds if the value already exists in the row
+                    @param i: A row value in the range [0, ..., N)
+                    @param j: A column value in the range [0, ..., N)
+                    @param value: A value in the range [1, ..., N]
+                    """            
+                    for row in range(N):
+                        if game_state.board.get(i, row) == value:
+                            return False
+                    return True
+            
+                def checkBlock(i, j, value) -> bool:
+                    """
+                    Checks whether the given value at position (i,j) is valid for the block
+                        i.e. finds if the value already exists in the block which holds (i,j)
+                    @param i: A row value in the range [0, ..., N)
+                    @param j: A column value in the range [0, ..., N)
+                    @param value: A value in the range [1, ..., N]
+                    """  
+                    x = i - i % game_state.board.m
+                    y = j - j % game_state.board.n
+                    for col in range(game_state.board.m):
+                        for row in range(game_state.board.n):
+                            if game_state.board.get(x+col, y+row) == value:
+                                return False
+                    return True
+ 
+                return not TabooMove(i, j, value) in game_state.taboo_moves \
+                        and checkColumn(i, j, value) \
+                        and checkRow(i, j, value) \
+                        and checkBlock(i, j, value)
+
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-        def evaluate(state):
-            ''' Return numerical evaluation of state '''
-            ''' Check how many fillable cells are in the state'''
-            cells = checkEmpty(state.board)
+        def assignScore(move) -> int:
+            """
+            Assigns a score to a move using some heuristic
+            @param move: a Move object containing a coordinate and a value
+            """
+
+            def completeColumn(i, j) -> bool:
+                """
+                Checks whether the given position (i,j) is the only empty square in the column
+                @param i: A row value in the range [0, ..., N)
+                @param j: A column value in the range [0, ..., N)
+                """
+                for col in range(N):
+                    if game_state.board.get(col, j) == SudokuBoard.empty \
+                            and col != i:
+                        return False
+                return True
+            
+            def completeRow(i, j) -> bool:
+                """
+                Checks whether the given position (i,j) is the only empty square in the row
+                @param i: A row value in the range [0, ..., N)
+                @param j: A column value in the range [0, ..., N)
+                """
+                for row in range(N):
+                    if game_state.board.get(i, row) == SudokuBoard.empty \
+                            and row != j:
+                        return False
+                return True
+            
+            def completeBlock(i, j) -> bool:
+                """
+                Checks whether the given position (i,j) is the only empty square in the block
+                @param i: A row value in the range [0, ..., N)
+                @param j: A column value in the range [0, ..., N)
+                """
+                x = i - i % game_state.board.m
+                y = j - j % game_state.board.n
+                for col in range(game_state.board.m):
+                    for row in range(game_state.board.n):
+                        if game_state.board.get(x+col, y+row) == SudokuBoard.empty \
+                                and (x+col != i or y+row != j):
+                            return False
+                return True
+
+            completedRegions = completeRow(move.i, move.j) + completeColumn(move.i, move.j) + completeBlock(move.i, move.j)
+
+            if completedRegions == 0:
+                return 0
+            if completedRegions == 1:
+                return 1
+            if completedRegions == 2:
+                return 3
+            if completedRegions == 3:
+                return 7
+        
+        def evaluate(state) -> typing.Tuple[int, Move]:
+            """
+            Finds the best Move for the given game state
+            @param state: a game state containing a SudokuBoard object
+            """
             best_value = 0
-            best_cell = random.choice(get_all_moves(state))
-            for cell in get_all_moves(state):
-                value = completeRow(cell.i, cell.j) + completeColumn(cell.i, cell.j) + completeBlock(cell.i, cell.j)
-                print(str(cell) + " has value: " + str(value) + " | || | " + str(completeRow(cell.i, cell.j)) + " | " + str(completeColumn(cell.i, cell.j)) + " | " + str(completeBlock(cell.i, cell.j)))
+            ## Initalize the best move as a random possible move
+            best_move = random.choice(getAllPossibleMoves(state))
+            for move in getAllPossibleMoves(state):
+                value = assignScore(move)
                 if value > best_value:
-                    best_cell = cell
+                    best_move = move
                     best_value = value
-                if best_value == 2:
-                    best_value = 3
-                elif best_value == 3:
-                    best_value = 7
-            # print(best_value, best_cell)
-            return best_value, best_cell
+            return best_value, best_move
 
-        # TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
-        # --> Assign the best score at the moment to self.propose_move(), and update this every time
+        ## TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
+        ## --> Assign the best score at the moment to self.propose_move(), and update this every time
 
-        def getChildren(state):
-            ''' Return list of states that follow from state '''
+        def getChildren(state) -> list[GameState]:
+            """
+            Gets a list of all the game states that can follow from the current state
+            after executing a valid move
+            @param state: a game state containing a SudokuBoard object
+            """
             children = []
-            for move in get_all_moves(state):
-                state.board.put(int(move.i), int(move.j), int(move.value))
+            for move in getAllPossibleMoves(state):
+                state.board.put(move.i, move.j, move.value)
                 children.append(copy.deepcopy(state))
-                state.board.put(int(move.i), move.j, SudokuBoard.empty)
+                state.board.put(move.i, move.j, SudokuBoard.empty)
             return children
 
-        def minimax(state, max_depth, current_depth = 1, isMaximizingPlayer = True, current_score = 0):
+        def minimax(state, max_depth, current_depth = 1, isMaximizingPlayer = True, current_score = 0) -> typing.Tuple[int, Move]:
             evaluated_score, evaluated_move = evaluate(state)
             
-            print("Current depth of node: " + str(current_depth-1))
-            print("Current score of node: " + str(current_score + evaluated_score) + " (" + str(current_score) + " + " + str(evaluated_score) + ")")
-            print("Current board: " + str(state.board))
+            # print("Current depth of node: " + str(current_depth-1))
+            # print("Current score of node: " + str(current_score + evaluated_score) + " (" + str(current_score) + " + " + str(evaluated_score) + ")")
+            # print("Current board: " + str(state.board))
 
-            # If the current depth is the target depth, evaluate that state.
+            ## If the current depth is the target depth, evaluate that state
             if current_depth == max_depth or len(checkEmpty(state.board)) == 1:
                 return current_score + evaluated_score, evaluated_move  # Returns score of the best next move for the input state
-            else: current_depth += 1
+
+            current_depth += 1
 
             for child in getChildren(state):
-                if isMaximizingPlayer:
-                    print("Current player is maximizing at depth " + str(current_depth-2) + ("\n" * 2))
-                    best_value, best_move = minimax(child, max_depth, current_depth, False, current_score + evaluated_score)
-                else:
-                    print("Current player is minimizing at depth " + str(current_depth-2) + ("\n" * 2))
-                    best_value, best_move = minimax(child, max_depth, current_depth, True, current_score= + evaluated_score)
+                # print("Current player is maximizing at depth " + str(current_depth-2) + ("\n" * 2))
+                best_value, best_move = minimax(child, max_depth, current_depth, not isMaximizingPlayer, current_score + evaluated_score)
 
             return best_value, best_move
-            # if depth == 0:
-            #     return evaluate(state)
 
-            # children = getChildren(state)
-            # best_move = None
-            # current_value, current_move = evaluate(state)
-            # print("Diepte: " + str(depth))
-            # print(current_move)
-            # if isMaximizingPlayer:
-            #     best_value = float('-inf')
-            #     for child in children:
-            #         value, move = minimax(child, depth-1, False)
-            #         if (value + current_value) > best_value:
-            #             best_value = value + current_value
-            #             best_move = move
-            #             # print(best_move, best_value, depth, value, current_value, current_move)
-            # else:
-            #     best_value = float('inf')
-            #     for child in children:
-            #         value, move = minimax(child, depth-1, True)
-            #         if (value + current_value) < best_value:
-            #             best_value = value + current_value
-            #             best_move = move
-            #             # print(best_move, best_value, depth, value, current_value, current_move)
-            # return best_value, best_move
+        ## Intialize a random possible move as return
+        ## (to ensure we always have a return ready on timeout)
+        self.propose_move(random.choice(getAllPossibleMoves(game_state)))
 
-        self.propose_move(random.choice(get_all_moves(game_state)))
-
-        # print(minimax(game_state, 3, True))
         value, evaluated_move = minimax(game_state, 6)  # Give gamestate and the maximum depth of nodes
 
         while True:

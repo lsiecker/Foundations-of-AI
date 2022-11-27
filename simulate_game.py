@@ -143,6 +143,13 @@ def main():
        2   1   .   3
        .   .   .   1
     '''
+
+    # board_text = '''2 2
+    #    1   2   3   4
+    #    3   4   1   2
+    #    2   1   .   3
+    #    .   3   .   1
+    # '''
     if args.board:
         board_text = Path(args.board).read_text()
     board = load_sudoku_from_text(board_text)
