@@ -20,7 +20,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     def compute_best_move(self, game_state: GameState) -> None:
         N = game_state.board.N    
-
+            
         def checkEmpty(board) -> list[typing.Tuple[int,int]]:
             """
             Finds all the empty cells of the input board
@@ -144,7 +144,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 return True
 
             completedRegions = completeRow(move.i, move.j) + completeColumn(move.i, move.j) + completeBlock(move.i, move.j)
-
+            
             if completedRegions == 0:
                 return 0
             if completedRegions == 1:
@@ -169,109 +169,61 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     best_value = value
             return best_move, best_value
 
-        ## TODO: Implement a variant of the minimax tree search algorithm (Iterative Deepening)
-        ## --> Assign the best score at the moment to self.propose_move(), and update this every time
-
-        def getChildren(state) -> list[GameState]:
+        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0) -> typing.Tuple[Move, int]:
             """
-            Gets a list of all the game states that can follow from the current state
-            after executing a valid move
+            Makes a tree to a given depth and returns the move a node needs to make to get a certain value
             @param state: a game state containing a SudokuBoard object
+            @param isMaximizingPlayer: a boolean value which determines if the player is maximizing
+            @param max_depth: a depth value which defines when to terminate the tree search
+            @param current_depth: a depth value which defines the current depth
+            @param current_score: a score value which defines the score of the parent node 
             """
-            children = []
-            for move in getAllPossibleMoves(state):
-                state.board.put(move.i, move.j, move.value)
-                children.append(copy.deepcopy(state))
-                state.board.put(move.i, move.j, SudokuBoard.empty)
-            return children
-
-        def minimax(state, isMaximizingPlayer, current_depth = 0, current_score = 0) -> typing.Tuple[Move, int]:
-            print("Performing minimax at a depth of", current_depth)
-
-            # If the previous move made the sudoku insolvable
-            # stop analysis of this branch and give the result up
+            # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
-                return None, None
+                if isMaximizingPlayer:
+                    return None, float("-inf")
+                return None, float("inf")
 
-            # If the game is finished, return the final move and its score
-            if len(getAllPossibleMoves(state)) == 1:
+            # If the tree is in the final leaf, return a move and value
+            if len(getAllPossibleMoves(state)) == 1 or current_depth == max_depth:
                 move, value = evaluate(state)
                 if isMaximizingPlayer:
                     return move, value
                 return move, -value
 
             scores = []
+            # Loop to search the tree for all children of the current node
             for move in getAllPossibleMoves(state):
-                print("Evalulating " + str(move))
                 score = assignScore(move, state)
                 if isMaximizingPlayer:
                     total_score = current_score + score
                 else:
                     total_score = current_score - score
                 state.board.put(move.i, move.j, move.value)
-                result_move, result_value = minimax(state, not isMaximizingPlayer, current_depth+1, total_score)
-                if result_move is not None:
-                    scores.append((result_move, result_value))
+                result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score)
+                scores.append((move, result_value))
                 state.board.put(move.i, move.j, SudokuBoard.empty)
 
-            [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
+            # [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
 
             if isMaximizingPlayer:
                 move, value = max(scores, key=lambda score: score[1]) # Return the state with the maximal score
-                print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
+                # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
                 return move, value + current_score
             move, value = min(scores, key=lambda score: score[1])
-            print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
+            # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
             return move, value + current_score
 
+        # start_time = time.time()
 
-        # def minimax(state, max_depth, current_depth = 0, isMaximizingPlayer = True, current_score = 0) -> typing.Tuple[int, Move]:
-            # print("Current board: " + str(state.board))
+        #  Intialize a random possible move as return
+        # (to ensure we always have a return ready on timeout)
+        self.propose_move(getAllPossibleMoves(game_state)[0])
 
-            # if len(getAllPossibleMoves(state)) == 0:
-            #     if isMaximizingPlayer:
-            #         return 1000000, Move(-1,-1,-1)
-            #     else:
-            #         return -100000, Move(-1,-1,-1)
-            
-            # evaluated_score, evaluated_move = evaluate(state)
-
-            # if isMaximizingPlayer:
-            #     total_score = current_score + evaluated_score
-            # else:
-            #     total_score = current_score - evaluated_score
-            
-            # print("Current depth of node: " + str(current_depth))
-            # print("Looking at the move: " + str(evaluated_move))
-            # if isMaximizingPlayer:
-            #     print("Current score of node: " + str(total_score) + " (" + str(current_score) + " + " + str(evaluated_score) + ")")
-            # else:
-            #     print("Current score of node: " + str(total_score) + " (" + str(current_score) + " - " + str(evaluated_score) + ")")
-            # print('\n')
-
-            # ## If the current depth is the target depth, evaluate that state
-            # if current_depth == max_depth or len(checkEmpty(state.board)) == 1:
-            #     print("We got to a final state!")
-            #     return total_score, evaluated_move  # Returns score of the best next move for the input state
-
-            # current_depth += 1
-
-            # for child in getChildren(state):
-            #     # print("Current player is maximizing at depth " + str(current_depth-2) + ("\n" * 2))
-            #     best_value, best_move = minimax(child, max_depth, current_depth, not isMaximizingPlayer, total_score)
-
-            # return best_value, best_move
-
-        ## Intialize a random possible move as return
-        ## (to ensure we always have a return ready on timeout)
-        self.propose_move(random.choice(getAllPossibleMoves(game_state)))
-
-        move, value = minimax(game_state, True)
-
-        # value, evaluated_move = minimax(game_state, 6)  # Give gamestate and the maximum depth of nodes
-
-        while True:
+        # Search the minimax tree with iterative deepening
+        for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
+            move, value = minimax(game_state, True, depth)
             self.propose_move(move)
-            print("Proposed move: " + str(move) + " | Total reward: " + str(value))
-            time.sleep(0.2)
-
+            # intermediate_time = time.time()
+            # print("Proposed move: " + str(move) + " | Total reward: " + str(value))
+            # print("\n\nTime for depth " + str(depth) + ": " + str(round(intermediate_time - start_time, 3)) + " seconds \n\n")
