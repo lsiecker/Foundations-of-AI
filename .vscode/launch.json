@@ -4,19 +4,18 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": [
-                "--first", "greedy_player",
-                "--second", "greedy_player"
-            ],
             "console": "integratedTerminal",
-            "justMyCode": false
-            
+            "args": [
+                "--first", "team40_A0",
+                "--second", "greedy_player",
+                "--time", "0.5"
+            ],
+            "justMyCode": true
         }
     ]
 }
