@@ -203,7 +203,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score)
                 scores.append((move, result_value))
                 state.board.put(move.i, move.j, SudokuBoard.empty)
-
             # [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
 
             if isMaximizingPlayer:
