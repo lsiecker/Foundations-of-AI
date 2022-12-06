@@ -9,6 +9,7 @@ import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
 
+import numpy as np # TODO: Look at exactly what functions we need from numpy (instead of importing everything)
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
@@ -27,10 +28,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param board: a SudokuBoard stored as array of N**2 entries
             """
             emptyCells = []
-            for k in range(N**2):
+            for k in np.where(board == SudokuBoard.empty):
                 i,j = SudokuBoard.f2rc(board, k)
-                if board.get(i,j) == SudokuBoard.empty:
-                    emptyCells.append([i,j])
+                emptyCells.append([i,j])
             return emptyCells
 
         def getAllPossibleMoves(state) -> list[Move]:
