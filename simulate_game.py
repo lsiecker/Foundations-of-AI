@@ -50,7 +50,7 @@ def simulate_game(initial_board: SudokuBoard, player1: SudokuAI, player2: Sudoku
     move_number = 0
     number_of_moves = initial_board.squares.count(SudokuBoard.empty)
     print('Initial state')
-    # print(game_state)
+    print(game_state)
 
     with multiprocessing.Manager() as manager:
         # use a lock to protect assignments to best_move
@@ -113,7 +113,7 @@ def simulate_game(initial_board: SudokuBoard, player1: SudokuAI, player2: Sudoku
                 return
             game_state.scores[player_number-1] = game_state.scores[player_number-1] + player_score
             print(f'Reward: {player_score}')
-            # print(game_state)
+            print(game_state)
         if game_state.scores[0] > game_state.scores[1]:
             print('Player 1 wins the game.')
         elif game_state.scores[0] == game_state.scores[1]:
