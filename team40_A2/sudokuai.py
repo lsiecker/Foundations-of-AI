@@ -235,7 +235,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return best_move, best_value
                 
 
-        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table = {}) -> typing.Tuple[Move, int]:
+        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table = {}, alpha=float("-inf"), beta=float("inf")) -> typing.Tuple[Move, int]:
             """
             Makes a tree to a given depth and returns the move a node needs to make to get a certain value
             @param state: a game state containing a SudokuBoard object
@@ -266,27 +266,34 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     return move, value
                 return move, -value
 
-            scores = []
-            # Loop to search the tree for all children of the current node
-            for move in getAllPossibleMoves(state):
-                score = assignScore(move, state)
-                if isMaximizingPlayer:
-                    total_score = current_score + score
-                else:
-                    total_score = current_score - score
-                state.board.put(move.i, move.j, move.value)
-                result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score)
-                scores.append((move, result_value))
-                state.board.put(move.i, move.j, SudokuBoard.empty)
-            # [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
-
             if isMaximizingPlayer:
-                move, value = max(scores, key=lambda score: score[1]) # Return the state with the maximal score
+                best = tuple(Move(0,0,0), float("-inf"))
+                for move in getAllPossibleMoves(state):
+                    total_score = current_score + assignScore(move, state)
+                    state.board.put(move.i, move.j, move.value)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
+                    state.board.put(move.i, move.j, SudokuBoard.empty)
+                    if result_value > best[1]:
+                        best = tuple(move, result_value)
+                    alpha = max(alpha, best[1])
+                    if beta <= alpha:
+                        break
+                transposition_table[state] = (best[0], best[1]+current_score, current_depth)
+                return best[0], best[1] + current_score
             else:
-                move, value = min(scores, key=lambda score: score[1])
-            # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
-            transposition_table[state] = (move, value+current_score, current_depth)
-            return move, value + current_score
+                best = tuple(Move(0,0,0), float("inf"))
+                for move in getAllPossibleMoves(state):
+                    total_score = current_score - assignScore(move, state)
+                    state.board.put(move.i, move.j, move.value)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
+                    state.board.put(move.i, move.j, SudokuBoard.empty)
+                    if result_value < best[1]:
+                        best = tuple(move, result_value)
+                    beta = min(beta, best[1])
+                    if beta <= alpha:
+                        break
+                transposition_table[state] = (best[0], best[1]+current_score, current_depth)
+                return best[0], best[1] + current_score
 
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
