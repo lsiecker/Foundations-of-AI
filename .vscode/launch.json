@@ -13,7 +13,7 @@
             "args": [
                 "--first", "team40_A0",
                 "--second", "greedy_player",
-                "--time", "0.5"
+                "--time","15"
             ],
             "justMyCode": true
         }
