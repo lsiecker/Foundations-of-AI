@@ -28,9 +28,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param board: a SudokuBoard stored as array of N**2 entries
             """
             emptyCells = []
-            for k in np.where(board == SudokuBoard.empty):
+            for k in range(N**2):
                 i,j = SudokuBoard.f2rc(board, k)
-                emptyCells.append([i,j])
+                if board.get(i,j) == SudokuBoard.empty:
+                    emptyCells.append([i,j])
             return emptyCells
 
         def getAllPossibleMoves(state) -> list[Move]:
@@ -267,28 +268,28 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 return move, -value
 
             if isMaximizingPlayer:
-                best = tuple(Move(0,0,0), float("-inf"))
+                best = (Move(0,0,0), float("-inf"))
                 for move in getAllPossibleMoves(state):
                     total_score = current_score + assignScore(move, state)
                     state.board.put(move.i, move.j, move.value)
                     result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
                     state.board.put(move.i, move.j, SudokuBoard.empty)
                     if result_value > best[1]:
-                        best = tuple(move, result_value)
+                        best = (move, result_value)
                     alpha = max(alpha, best[1])
                     if beta <= alpha:
                         break
                 transposition_table[state] = (best[0], best[1]+current_score, current_depth)
                 return best[0], best[1] + current_score
             else:
-                best = tuple(Move(0,0,0), float("inf"))
+                best = (Move(0,0,0), float("inf"))
                 for move in getAllPossibleMoves(state):
                     total_score = current_score - assignScore(move, state)
                     state.board.put(move.i, move.j, move.value)
                     result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
                     state.board.put(move.i, move.j, SudokuBoard.empty)
                     if result_value < best[1]:
-                        best = tuple(move, result_value)
+                        best = (move, result_value)
                     beta = min(beta, best[1])
                     if beta <= alpha:
                         break
