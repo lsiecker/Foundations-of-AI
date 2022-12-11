@@ -169,7 +169,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     best_value = value
             return best_move, best_value
 
-        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0) -> typing.Tuple[Move, int]:
+        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table={}) -> typing.Tuple[Move, int]:
             """
             Makes a tree to a given depth and returns the move a node needs to make to get a certain value
             @param state: a game state containing a SudokuBoard object
@@ -178,6 +178,11 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param current_depth: a depth value which defines the current depth
             @param current_score: a score value which defines the score of the parent node 
             """
+            print("Current depth: ", current_depth)
+
+            if state in transposition_table:
+                return transposition_table[state]
+
             # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
                 if isMaximizingPlayer:
@@ -208,21 +213,54 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             if isMaximizingPlayer:
                 move, value = max(scores, key=lambda score: score[1]) # Return the state with the maximal score
-                # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
-                return move, value + current_score
-            move, value = min(scores, key=lambda score: score[1])
-            # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
+            else: move, value = min(scores, key=lambda score: score[1])
+            print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
+            transposition_table[state] = (move, value + current_score)
             return move, value + current_score
 
         # start_time = time.time()
+
+
+        def negamax(state, depth, isMaximizingPlayer):
+            if state in transposition_table:
+                trans_state = transposition_table[state]
+                if trans_state[1] >= depth:
+                    return trans_state[2], trans_state[0]
+
+            if depth == 0 or len(getAllPossibleMoves(state)) == 1:
+                move, value = evaluate(state)
+                if isMaximizingPlayer:
+                    return move, value
+                return move, -value
+
+            value = float('-inf')
+            scores = []
+            # Loop to search the tree for all children of the current node
+            for move in getAllPossibleMoves(state):
+                state.board.put(move.i, move.j, move.value)
+                result_move, result_value = negamax(state, depth, not isMaximizingPlayer)
+                scores.append((move, result_value))
+                state.board.put(move.i, move.j, SudokuBoard.empty)
+
+            [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
+
+            if isMaximizingPlayer:
+                best_move, value = max(scores, key=lambda score: score[1])
+            else:
+                best_move, value = min(scores, key=lambda score: score[1])
+
+            transposition_table[state] = (value, depth, best_move)
+            return best_move, value
 
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
         self.propose_move(getAllPossibleMoves(game_state)[0])
 
+        transposition_table = {}
+
         # Search the minimax tree with iterative deepening
         for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
-            move, value = minimax(game_state, True, depth)
+            move, value = negamax(game_state, depth, True)
             self.propose_move(move)
             # intermediate_time = time.time()
             # print("Proposed move: " + str(move) + " | Total reward: " + str(value))
