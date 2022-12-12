@@ -169,7 +169,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     best_value = value
             return best_move, best_value
 
-        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table={}) -> typing.Tuple[Move, int]:
+        def minimax(state, max_depth, isMaximizingPlayer, current_depth = 0, current_score = 0, transposition_table={}) -> typing.Tuple[Move, int]:
             """
             Makes a tree to a given depth and returns the move a node needs to make to get a certain value
             @param state: a game state containing a SudokuBoard object
@@ -205,7 +205,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 else:
                     total_score = current_score - score
                 state.board.put(move.i, move.j, move.value)
-                result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score)
+                result_move, result_value = minimax(state, max_depth, not isMaximizingPlayer, current_depth+1, total_score)
                 scores.append((move, result_value))
                 state.board.put(move.i, move.j, SudokuBoard.empty)
 
@@ -238,7 +238,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             # Loop to search the tree for all children of the current node
             for move in getAllPossibleMoves(state):
                 state.board.put(move.i, move.j, move.value)
-                result_move, result_value = negamax(state, depth, not isMaximizingPlayer)
+                result_move, result_value = negamax(state, depth-1, not isMaximizingPlayer)
                 scores.append((move, result_value))
                 state.board.put(move.i, move.j, SudokuBoard.empty)
 
