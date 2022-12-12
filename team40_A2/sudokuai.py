@@ -261,17 +261,23 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param current_score: a score value which defines the score of the parent node 
             """
 
-            if state in transposition_table:
-                return transposition_table[state]
+            # print("Depth: ", current_depth+1)
 
+            if state in transposition_table:
+                trans_move, trans_value, trans_depth = transposition_table[state]
+                if max_depth - trans_depth < max_depth - current_depth:
+                    return trans_move, trans_value + current_score
 
             # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
+                emptyCells = state.board.squares.count(game_state.board.empty)
                 if isMaximizingPlayer:
+                    # if emptyCells%2 == 0:
+                    #     return None, float("inf")
                     return None, float("-inf")
                 return None, float("inf")
 
-            # If the tree is in the final leaf, return a move and value
+            # If the tree is in the final leaf, resturn a move and value
             if len(getAllPossibleMoves(state)) == 1 or current_depth == max_depth:
                 move, value = evaluate(state)
                 if isMaximizingPlayer:
@@ -294,12 +300,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             if isMaximizingPlayer:
                 move, value = max(scores, key=lambda score: score[1]) # Return the state with the maximal score
-                print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
-                transposition_table[state] = (move, value + current_score)
-                return move, value + current_score
-            move, value = min(scores, key=lambda score: score[1])
+            else:
+                move, value = min(scores, key=lambda score: score[1])
             print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
-            transposition_table[state] = (move, value + current_score)
+            transposition_table[state] = (move, value+current_score, current_depth)
             return move, value + current_score
 
         # start_time = time.time()
@@ -316,12 +320,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         #     i,j = SudokuBoard.f2rc(game_state.board, k)
         # self.propose_move(Move(i, j))
 
-        table = {}
-
         # Search the minimax tree with iterative deepening
         for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
 
-            move, value = minimax(game_state, True, depth, transposition_table=table)
+            move, value = minimax(game_state, True, depth)
             self.propose_move(move)
             print(time.time() - start)
             # intermediate_time = time.time()
