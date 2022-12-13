@@ -9,6 +9,7 @@ import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
 
+import numpy as np # TODO: Look at exactly what functions we need from numpy (instead of importing everything)
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
@@ -101,6 +102,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
+        self.propose_move(getAllPossibleMoves(game_state)[0])
 
         def assignScore(move, state) -> int:
             """
@@ -152,19 +154,25 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             scores = {0: 0, 1: 1, 2: 3, 3: 7}
             return scores[completedRegions]
 
-        
+        def firstMove(moves):
+            for move in moves:
+                if not secondToLast(move):
+                    return move
+            return moves[0]
+
+
         def usefulMoves(legalmoves):
             usefulmoves = []
             non_usefulmoves = []
 
             for move in legalmoves:
-                if assignScore(move, game_state)>0:
+                if assignScore(move, game_state) > 0:
                     usefulmoves.append(move)
                 else:
                     non_usefulmoves.append(move)
             
             if len(non_usefulmoves)>0:
-                usefulmoves.append(non_usefulmoves[0])
+                usefulmoves.extend(non_usefulmoves)
             # print(usefulmoves)
             return usefulmoves
 
@@ -177,32 +185,21 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             for j in range(N):
                 if game_state.board.get(move.i,j) == SudokuBoard.empty:
                     emptyrow += 1
-
-                    if emptyrow > 2:
-                        return False
-            row = emptyrow == 2
             
             for i in range(N):
                 if game_state.board.get(i,move.j) == SudokuBoard.empty:
                     emptycol += 1
 
-                    if emptycol > 2:
-                        return False
-            col = emptycol == 2
-
-            x = move.i - (move.i % N)
-            y = move.j - (move.j % N)
-            for c in range(N):
-                for r in range(N):
+            x = move.i - (move.i % game_state.board.m)
+            y = move.j - (move.j % game_state.board.n)
+            for c in range(game_state.board.m):
+                for r in range(game_state.board.n):
                     if game_state.board.get(x+c, y+r) == SudokuBoard.empty:
                         emptyblock += 1
 
-                        if emptyblock > 2:
-                            return False
-            block = emptyblock == 2
-
-            if row + col + block > 0:
+            if emptyblock == 2 or emptycol == 2 or emptyrow == 2:
                 return True
+            return False
 
         
         def evaluate(state) -> typing.Tuple[Move, int]:
@@ -211,14 +208,14 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param state: a game state containing a SudokuBoard object
             """
             best_value = -1
-            ## Initalize the best move as a random possible move
+            # Initalize the best move as a random possible move
             legalmoves = getAllPossibleMoves(game_state)
             moves = usefulMoves(legalmoves)
 
-            best_move = random.choice(usefulMoves(legalmoves))
+            best_move = (legalmoves[0])
             notsecondtolast = []
             secondtolast = []
-            for move in usefulMoves(legalmoves):
+            for move in moves:
                 if secondToLast(move):
                     secondtolast.append(move)
                 else:
@@ -235,7 +232,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return best_move, best_value
                 
 
-        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table = {}) -> typing.Tuple[Move, int]:
+        def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table = {}, alpha=float("-inf"), beta=float("inf")) -> typing.Tuple[Move, int]:
             """
             Makes a tree to a given depth and returns the move a node needs to make to get a certain value
             @param state: a game state containing a SudokuBoard object
@@ -246,15 +243,22 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             """
 
             # print("empty cells: ", state.board.squares.count(game_state.board.empty)%2)
+            alphaOrig = alpha
 
             if state in transposition_table:
-                trans_move, trans_value, trans_depth = transposition_table[state]
+                trans_move, trans_value, trans_depth, trans_alphabeta = transposition_table[state]
                 if max_depth - trans_depth < max_depth - current_depth:
-                    return trans_move, trans_value + current_score
+                    if trans_alphabeta == "EXACT":
+                        return trans_move, trans_value + current_score
+                    elif trans_alphabeta == "LOWERBOUND":
+                        alpha = max(alpha, trans_value)
+                    elif trans_alphabeta == "UPPERBOUND":
+                        beta = min(beta, trans_value)
+                    if alpha >= beta:
+                        return trans_move, trans_value + current_score
 
             # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
-                emptyCells = state.board.squares.count(game_state.board.empty)
                 if isMaximizingPlayer:
                     return None, float("-inf")
                 return None, float("inf")
@@ -262,40 +266,68 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             # If the tree is in the final leaf, resturn a move and value
             if len(getAllPossibleMoves(state)) == 1 or current_depth == max_depth:
                 move, value = evaluate(state)
+                transposition_table[state] = (move, value+current_score, current_depth, "EXACT")
                 if isMaximizingPlayer:
                     return move, value
                 return move, -value
 
-            scores = []
-            # Loop to search the tree for all children of the current node
-            for move in getAllPossibleMoves(state):
-                score = assignScore(move, state)
-                if isMaximizingPlayer:
-                    total_score = current_score + score
-                else:
-                    total_score = current_score - score
-                state.board.put(move.i, move.j, move.value)
-                result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score)
-                scores.append((move, result_value))
-                state.board.put(move.i, move.j, SudokuBoard.empty)
-            # [print((str(i[0])) + " scores a value of " + str(i[1])) for i in scores]
-
             if isMaximizingPlayer:
-                move, value = max(scores, key=lambda score: score[1]) # Return the state with the maximal score
+                best_move = Move(0,0,0)
+                best_value = float("-inf")
+                for move in getAllPossibleMoves(state):
+                    total_score = current_score + assignScore(move, state)
+                    state.board.put(move.i, move.j, move.value)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, transposition_table, alpha, beta)
+                    state.board.put(move.i, move.j, SudokuBoard.empty)
+                    if result_value > best_value:
+                        best_move = move
+                        best_value = result_value
+                    alpha = max(alpha, best_value)
+                    if beta <= alpha:
+                        break
             else:
-                move, value = min(scores, key=lambda score: score[1])
-            # print("Optimal move for depth " + str(current_depth+1) + " is " + str(move) + " with a total reward of " + str(value))
-            transposition_table[state] = (move, value+current_score, current_depth)
-            return move, value + current_score
+                best_move = Move(0,0,0)
+                best_value = float("inf")
+                for move in getAllPossibleMoves(state):
+                    total_score = current_score - assignScore(move, state)
+                    state.board.put(move.i, move.j, move.value)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, transposition_table, alpha, beta)
+                    state.board.put(move.i, move.j, SudokuBoard.empty)
+                    if result_value < best_value:
+                        best_move = move
+                        best_value = result_value
+                    beta = min(beta, best_value)
+                    if beta <= alpha:
+                        break
+
+            if best_value <= alphaOrig:
+                alphabeta = "UPPERBOUND"
+            elif best_value >= beta:
+                alphabeta = "LOWERBOUND"
+            else:
+                alphabeta = "EXACT"
+
+            transposition_table[state] = (best_move, best_value+current_score, current_depth, alphabeta)
+            return best_move, best_value + current_score
 
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
         start = time.time()
-        legalmoves = getAllPossibleMoves(game_state)
-        self.propose_move(usefulMoves(legalmoves)[0])
 
-        # Search the minimax tree with iterative deepening
-        for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
-            move, value = minimax(game_state, True, depth)
-            self.propose_move(move)
-            # print(time.time() - start)
+        emptyCells = game_state.board.squares.count(game_state.board.empty)
+
+        # self.propose_move(firstMove(legalmoves))
+        if emptyCells > 55:
+            legalmoves = getAllPossibleMoves(game_state)
+            self.propose_move(usefulMoves(legalmoves)[0])
+            print("1:", time.time() - start)
+        elif emptyCells > 30:
+            for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
+                move, value = minimax(game_state, True, depth)
+                self.propose_move(move)
+                print("2:", time.time() - start)
+        else:
+            for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
+                move, value = minimax(game_state, True, depth)
+                self.propose_move(move)        
+                print("3", time.time() - start)
