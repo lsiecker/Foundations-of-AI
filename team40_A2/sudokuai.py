@@ -247,11 +247,19 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             """
 
             # print("empty cells: ", state.board.squares.count(game_state.board.empty)%2)
+            alphaOrig = alpha
 
             if state in transposition_table:
-                trans_move, trans_value, trans_depth = transposition_table[state]
+                trans_move, trans_value, trans_depth, trans_alphabeta = transposition_table[state]
                 if max_depth - trans_depth < max_depth - current_depth:
-                    return trans_move, trans_value + current_score
+                    if trans_alphabeta == "EXACT":
+                        return trans_move, trans_value + current_score
+                    elif trans_alphabeta == "LOWERBOUND":
+                        alpha = max(alpha, trans_value)
+                    elif trans_alphabeta == "UPPERBOUND":
+                        beta = min(beta, trans_value)
+                    if alpha >= beta:
+                        return trans_move, trans_value + current_score
 
             # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
@@ -263,38 +271,49 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             # If the tree is in the final leaf, resturn a move and value
             if len(getAllPossibleMoves(state)) == 1 or current_depth == max_depth:
                 move, value = evaluate(state)
+                transposition_table[state] = (move, value+current_score, current_depth, "EXACT")
                 if isMaximizingPlayer:
                     return move, value
                 return move, -value
 
             if isMaximizingPlayer:
-                best = (Move(0,0,0), float("-inf"))
+                best_move = Move(0,0,0)
+                best_value = float("-inf")
                 for move in getAllPossibleMoves(state):
                     total_score = current_score + assignScore(move, state)
                     state.board.put(move.i, move.j, move.value)
-                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, transposition_table, alpha, beta)
                     state.board.put(move.i, move.j, SudokuBoard.empty)
-                    if result_value > best[1]:
-                        best = (move, result_value)
-                    alpha = max(alpha, best[1])
+                    if result_value > best_value:
+                        best_move = move
+                        best_value = result_value
+                    alpha = max(alpha, best_value)
                     if beta <= alpha:
                         break
-                transposition_table[state] = (best[0], best[1]+current_score, current_depth)
-                return best[0], best[1] + current_score
             else:
-                best = (Move(0,0,0), float("inf"))
+                best_move = Move(0,0,0)
+                best_value = float("inf")
                 for move in getAllPossibleMoves(state):
                     total_score = current_score - assignScore(move, state)
                     state.board.put(move.i, move.j, move.value)
-                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, alpha, beta)
+                    result_move, result_value = minimax(state, not isMaximizingPlayer, max_depth, current_depth+1, total_score, transposition_table, alpha, beta)
                     state.board.put(move.i, move.j, SudokuBoard.empty)
-                    if result_value < best[1]:
-                        best = (move, result_value)
-                    beta = min(beta, best[1])
+                    if result_value < best_value:
+                        best_move = move
+                        best_value = result_value
+                    beta = min(beta, best_value)
                     if beta <= alpha:
                         break
-                transposition_table[state] = (best[0], best[1]+current_score, current_depth)
-                return best[0], best[1] + current_score
+
+            if best_value <= alphaOrig:
+                alphabeta = "UPPERBOUND"
+            elif best_value >= beta:
+                alphabeta = "LOWERBOUND"
+            else:
+                alphabeta = "EXACT"
+
+            transposition_table[state] = (best_move, best_value+current_score, current_depth, alphabeta)
+            return best_move, best_value + current_score
 
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
