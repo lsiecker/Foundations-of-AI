@@ -102,7 +102,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-
         def assignScore(move, state) -> int:
             """
             Assigns a score to a move using some heuristic
@@ -153,19 +152,25 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             scores = {0: 0, 1: 1, 2: 3, 3: 7}
             return scores[completedRegions]
 
-        
+        def firstMove(moves):
+            for move in moves:
+                if not secondToLast(move):
+                    return move
+            return moves[0]
+
+
         def usefulMoves(legalmoves):
             usefulmoves = []
             non_usefulmoves = []
 
             for move in legalmoves:
-                if assignScore(move, game_state)>0:
+                if assignScore(move, game_state) > 0:
                     usefulmoves.append(move)
                 else:
                     non_usefulmoves.append(move)
             
             if len(non_usefulmoves)>0:
-                usefulmoves.append(non_usefulmoves[0])
+                usefulmoves.extend(non_usefulmoves)
             # print(usefulmoves)
             return usefulmoves
 
@@ -178,32 +183,21 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             for j in range(N):
                 if game_state.board.get(move.i,j) == SudokuBoard.empty:
                     emptyrow += 1
-
-                    if emptyrow > 2:
-                        return False
-            row = emptyrow == 2
             
             for i in range(N):
                 if game_state.board.get(i,move.j) == SudokuBoard.empty:
                     emptycol += 1
 
-                    if emptycol > 2:
-                        return False
-            col = emptycol == 2
-
-            x = move.i - (move.i % N)
-            y = move.j - (move.j % N)
-            for c in range(N):
-                for r in range(N):
+            x = move.i - (move.i % game_state.board.m)
+            y = move.j - (move.j % game_state.board.n)
+            for c in range(game_state.board.m):
+                for r in range(game_state.board.n):
                     if game_state.board.get(x+c, y+r) == SudokuBoard.empty:
                         emptyblock += 1
 
-                        if emptyblock > 2:
-                            return False
-            block = emptyblock == 2
-
-            if row + col + block > 0:
+            if emptyblock == 2 or emptycol == 2 or emptyrow == 2:
                 return True
+            return False
 
         
         def evaluate(state) -> typing.Tuple[Move, int]:
@@ -212,14 +206,14 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param state: a game state containing a SudokuBoard object
             """
             best_value = -1
-            ## Initalize the best move as a random possible move
+            # Initalize the best move as a random possible move
             legalmoves = getAllPossibleMoves(game_state)
             moves = usefulMoves(legalmoves)
 
-            best_move = random.choice(usefulMoves(legalmoves))
+            best_move = (legalmoves[0])
             notsecondtolast = []
             secondtolast = []
-            for move in usefulMoves(legalmoves):
+            for move in moves:
                 if secondToLast(move):
                     secondtolast.append(move)
                 else:
@@ -263,7 +257,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             # If there are no possible moves (when no move is valid), return a infinite value
             if len(getAllPossibleMoves(state)) == 0:
-                emptyCells = state.board.squares.count(game_state.board.empty)
                 if isMaximizingPlayer:
                     return None, float("-inf")
                 return None, float("inf")
@@ -318,11 +311,20 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
         start = time.time()
+        emptyCells = game_state.board.squares.count(game_state.board.empty)
         legalmoves = getAllPossibleMoves(game_state)
-        self.propose_move(usefulMoves(legalmoves)[0])
 
-        # Search the minimax tree with iterative deepening
-        for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
-            move, value = minimax(game_state, True, depth)
-            self.propose_move(move)
-            # print(time.time() - start)
+        self.propose_move(firstMove(legalmoves))
+        if emptyCells > 55:
+            self.propose_move(usefulMoves(legalmoves)[0])
+            print("1:", time.time() - start)
+        elif emptyCells > 30:
+            for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
+                move, value = minimax(game_state, True, depth)
+                self.propose_move(move)
+                print("2:", time.time() - start)
+        else:
+            for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
+                move, value = minimax(game_state, True, depth)
+                self.propose_move(move)        
+                print("3", time.time() - start)

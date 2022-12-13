@@ -9,7 +9,7 @@
             "args": [
                 "--first", "team40_A2",
                 "--second", "greedy_player",
-                "--board", "boards/random-2x3.txt",
+                "--board", "boards/test-3x3.txt",
                 "--time", "1000"
             ],
             "console": "integratedTerminal",
