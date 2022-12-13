@@ -8,7 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Get the number of CPU cores on the system
 num_cores = os.cpu_count()
-num_cores = 2
+print(num_cores)
+num_cores = 4
 
 # Create the threadpool executor with the same number of workers as CPU cores
 executor = ThreadPoolExecutor(max_workers=num_cores)
@@ -21,10 +22,13 @@ def main():
             res = os.popen('python simulate_game.py --first ' + player_1 + ' --second ' + player_2 + ' --time ' + time + ' --board boards\\' + board).read()
             return (player_1, player_2, time, board, res.splitlines()[-1])
 
-    # times = ["0.1", "0.5", "1", "5"]
-    times = ["0.5", "1"]
+    times = ["0.1", "0.5", "1", "5"]
+    # times = ["0.5"]
     players = ["greedy_player", "team40_A1"]
     boards = ["easy-2x2.txt","easy-3x3.txt","empty-3x3.txt","hard-3x3.txt","random-2x3.txt","random-3x3.txt","random-3x4.txt","random-4x4.txt"]
+    # boards = ["easy-2x2.txt"]
+    repeats = 5
+
     win = 0
     loss = 0
     draw = 0
@@ -33,7 +37,7 @@ def main():
     for player in players:
         for time in times:
             for board in boards:
-                for i in range(5):
+                for i in range(repeats):
                     result = executor.submit(run_file, "team40_A2", player, time, board)
                     results.append(result)
                     result = executor.submit(run_file, player, "team40_A2", time, board)
@@ -61,6 +65,7 @@ def main():
             print(win, "/", draw, "/", loss)
             # Write the result to the file
             outfile.write(str(result.result()) + '\n')
+        outfile.write(str(win) + "/" + str(draw) + "/" + str(loss))
 
 if __name__ == '__main__':
     main()
