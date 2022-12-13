@@ -102,6 +102,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
+        self.propose_move(getAllPossibleMoves(game_state)[0])
+
         def assignScore(move, state) -> int:
             """
             Assigns a score to a move using some heuristic
@@ -311,11 +313,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         #  Intialize a random possible move as return
         # (to ensure we always have a return ready on timeout)
         start = time.time()
-        emptyCells = game_state.board.squares.count(game_state.board.empty)
-        legalmoves = getAllPossibleMoves(game_state)
 
-        self.propose_move(firstMove(legalmoves))
+        emptyCells = game_state.board.squares.count(game_state.board.empty)
+
+        # self.propose_move(firstMove(legalmoves))
         if emptyCells > 55:
+            legalmoves = getAllPossibleMoves(game_state)
             self.propose_move(usefulMoves(legalmoves)[0])
             print("1:", time.time() - start)
         elif emptyCells > 30:
