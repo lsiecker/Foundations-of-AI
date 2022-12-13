@@ -1,21 +1,19 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: debug",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
+            "program": "simulate_game.py",
             "args": [
-                "--first", "team40_A0",
+                "--first", "team40_A2",
                 "--second", "greedy_player",
-                "--time", "0.5"
+                "--board", "boards/random-2x3.txt",
+                "--time", "1000"
             ],
-            "justMyCode": true
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
