@@ -20,8 +20,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         super()._init_()
 
     def compute_best_move(self, game_state: GameState) -> None:
+        start = time.time()
         N = game_state.board.N    
-            
+
         def checkEmpty(board) -> list[typing.Tuple[int,int]]:
             """
             Finds all the empty cells of the input board
@@ -33,6 +34,33 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 if board.get(i,j) == SudokuBoard.empty:
                     emptyCells.append([i,j])
             return emptyCells
+
+        def getColumn(state, i, j) -> np.array:
+            """
+            Gets the column where the position (i,j) is in
+            @param state: a game state containing a SudokuBoard object
+            @param i: A row value in the range [0, ..., N)
+            @param j: A column value in the range [0, ..., N)
+            """
+            column = []
+            for c in range(N):
+                column.append(state.board.get(c,j))
+            return np.asarray(column)
+
+        def getRow(state, i, j) -> np.array:
+            row = []
+            for r in range(N):
+                row.append(state.board.get(i,r))
+            return np.asarray(row)
+
+        def getBlock(state, i, j) -> np.array:
+            block = []
+            x = i - (i % state.board.m)
+            y = j - (j % state.board.n)
+            for c in range(state.board.m):
+                for r in range(state.board.n):
+                    block.append(state.board.get(x+c, y+r))
+            return np.asarray(block)
 
         def getAllPossibleMoves(state) -> list[Move]:
             """
@@ -52,7 +80,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 """
 
 
-                def checkColumn(i, j, value) -> bool:
+                def valueInColumn(i, j, value) -> bool:
                     """
                     Checks whether the given value at position (i,j) is valid for the column
                         i.e. finds if the value already exists in the column
@@ -60,12 +88,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     @param j: A column value in the range [0, ..., N)
                     @param value: A value in the range [1, ..., N]
                     """
-                    for col in range(N):
-                        if state.board.get(col, j) == value:
-                            return False
-                    return True
+                    return value in getColumn(state, i, j)
             
-                def checkRow(i, j, value) -> bool:
+                def valueInRow(i, j, value) -> bool:
                     """
                     Checks whether the given value at position (i,j) is valid for the row
                         i.e. finds if the value already exists in the row
@@ -73,12 +98,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     @param j: A column value in the range [0, ..., N)
                     @param value: A value in the range [1, ..., N]
                     """            
-                    for row in range(N):
-                        if state.board.get(i, row) == value:
-                            return False
-                    return True
+                    return value in getRow(state, i, j)
             
-                def checkBlock(i, j, value) -> bool:
+                def valueInBlock(i, j, value) -> bool:
                     """
                     Checks whether the given value at position (i,j) is valid for the block
                         i.e. finds if the value already exists in the block which holds (i,j)
@@ -86,18 +108,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     @param j: A column value in the range [0, ..., N)
                     @param value: A value in the range [1, ..., N]
                     """  
-                    x = i - (i % state.board.m)
-                    y = j - (j % state.board.n)
-                    for col in range(state.board.m):
-                        for row in range(state.board.n):
-                            if state.board.get(x+col, y+row) == value:
-                                return False
-                    return True
+                    return value in getBlock(state, i, j)
  
                 return not TabooMove(i, j, value) in state.taboo_moves \
-                        and checkColumn(i, j, value) \
-                        and checkRow(i, j, value) \
-                        and checkBlock(i, j, value)
+                        and not valueInColumn(i, j, value) \
+                        and not valueInRow(i, j, value) \
+                        and not valueInBlock(i, j, value)
 
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
@@ -116,11 +132,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                for col in range(N):
-                    if state.board.get(col, j) == SudokuBoard.empty \
-                            and col != i:
-                        return False
-                return True
+                return np.count_nonzero(getColumn(state, i, j) == SudokuBoard.empty) == 1
             
             def completeRow(i, j) -> bool:
                 """
@@ -128,11 +140,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                for row in range(N):
-                    if state.board.get(i, row) == SudokuBoard.empty \
-                            and row != j:
-                        return False
-                return True
+                return np.count_nonzero(getRow(state, i, j) == SudokuBoard.empty) == 1
             
             def completeBlock(i, j) -> bool:
                 """
@@ -140,25 +148,18 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                x = i - (i % state.board.m)
-                y = j - (j % state.board.n)
-                for col in range(state.board.m):
-                    for row in range(state.board.n):
-                        if state.board.get(x+col, y+row) == SudokuBoard.empty \
-                                and (x+col != i or y+row != j):
-                            return False
-                return True
+                return np.count_nonzero(getBlock(state, i, j) == SudokuBoard.empty) == 1
 
             completedRegions = completeRow(move.i, move.j) + completeColumn(move.i, move.j) + completeBlock(move.i, move.j)
             
             scores = {0: 0, 1: 1, 2: 3, 3: 7}
             return scores[completedRegions]
 
-        def firstMove(moves):
-            for move in moves:
-                if not secondToLast(move):
-                    return move
-            return moves[0]
+        # def firstMove(moves):
+        #     for move in moves:
+        #         if not secondToLast(state, move):
+        #             return move
+        #     return moves[0]
 
 
         def usefulMoves(legalmoves):
@@ -175,32 +176,15 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 usefulmoves.extend(non_usefulmoves)
             # print(usefulmoves)
             return usefulmoves
+        legalmoves = getAllPossibleMoves(game_state)
+        self.propose_move(usefulMoves(legalmoves)[0])
+        print(time.time() - start)
 
-        def secondToLast(move):
- 
-            emptyrow = 0
-            emptycol = 0
-            emptyblock = 0
+        def secondToLast(state, move):
 
-            for j in range(N):
-                if game_state.board.get(move.i,j) == SudokuBoard.empty:
-                    emptyrow += 1
-            
-            for i in range(N):
-                if game_state.board.get(i,move.j) == SudokuBoard.empty:
-                    emptycol += 1
-
-            x = move.i - (move.i % game_state.board.m)
-            y = move.j - (move.j % game_state.board.n)
-            for c in range(game_state.board.m):
-                for r in range(game_state.board.n):
-                    if game_state.board.get(x+c, y+r) == SudokuBoard.empty:
-                        emptyblock += 1
-
-            if emptyblock == 2 or emptycol == 2 or emptyrow == 2:
-                return True
-            return False
-
+            return np.count_nonzero(getColumn(state, move.i, move.j) == SudokuBoard.empty) == 2 \
+                or np.count_nonzero(getRow(state, move.i, move.j) == SudokuBoard.empty) == 2 \
+                or np.count_nonzero(getBlock(state, move.i, move.j) == SudokuBoard.empty) == 2
         
         def evaluate(state) -> typing.Tuple[Move, int]:
             """
@@ -214,14 +198,11 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             best_move = (legalmoves[0])
             notsecondtolast = []
-            secondtolast = []
             for move in moves:
-                if secondToLast(move):
-                    secondtolast.append(move)
-                else:
+                if not secondToLast(state, move):
                     notsecondtolast.append(move)
             
-            moves = notsecondtolast if len(notsecondtolast) > 0 else secondtolast
+            moves = notsecondtolast if len(notsecondtolast) > 0 else moves
 
             for move in moves:
                 value = assignScore(move, state)
@@ -320,14 +301,14 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         if emptyCells > 55:
             legalmoves = getAllPossibleMoves(game_state)
             self.propose_move(usefulMoves(legalmoves)[0])
-            print("1:", time.time() - start)
+            # print("1:", time.time() - start)
         elif emptyCells > 30:
             for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
                 move, value = minimax(game_state, True, depth)
                 self.propose_move(move)
-                print("2:", time.time() - start)
+                # print("2:", time.time() - start)
         else:
             for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
                 move, value = minimax(game_state, True, depth)
                 self.propose_move(move)        
-                print("3", time.time() - start)
+                # print("3", time.time() - start)
