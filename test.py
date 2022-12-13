@@ -35,7 +35,7 @@ def main():
                     results.append(result)
 
     # Open the file for writing
-    with open('results.xlsx', 'w') as outfile:
+    with open('results.txt', 'w') as outfile:
         # Get the results from the function calls
         for result in results:
             # Write the result to the file

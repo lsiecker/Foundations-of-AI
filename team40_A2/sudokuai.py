@@ -292,7 +292,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         # (to ensure we always have a return ready on timeout)
         start = time.time()
         legalmoves = getAllPossibleMoves(game_state)
-        self.propose_move(random.choice(usefulMoves(legalmoves)))
+        self.propose_move(usefulMoves(legalmoves)[0])
 
         # Search the minimax tree with iterative deepening
         for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
