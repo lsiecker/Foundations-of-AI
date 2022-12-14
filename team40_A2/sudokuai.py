@@ -9,7 +9,7 @@ import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
 
-import numpy as np # TODO: Look at exactly what functions we need from numpy (instead of importing everything)
+from numpy import array, asarray, count_nonzero
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
@@ -34,7 +34,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     emptyCells.append([i,j])
             return emptyCells
 
-        def getColumn(state, i, j) -> np.array:
+        def getColumn(state, i, j) -> array:
             """
             Gets the column where the position (i,j) is in
             @param state: a game state containing a SudokuBoard object
@@ -44,9 +44,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             column = []
             for c in range(N):
                 column.append(state.board.get(c,j))
-            return np.asarray(column)
+            return asarray(column)
 
-        def getRow(state, i, j) -> np.array:
+        def getRow(state, i, j) -> array:
             """
             Gets the row where the position (i,j) is in
             @param state: a game state containing a SudokuBoard object
@@ -56,9 +56,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             row = []
             for r in range(N):
                 row.append(state.board.get(i,r))
-            return np.asarray(row)
+            return asarray(row)
 
-        def getBlock(state, i, j) -> np.array:
+        def getBlock(state, i, j) -> array:
             """
             Gets the block where the position (i,j) is in
             @param state: a game state containing a SudokuBoard object
@@ -71,7 +71,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             for c in range(state.board.m):
                 for r in range(state.board.n):
                     block.append(state.board.get(x+c, y+r))
-            return np.asarray(block)
+            return asarray(block)
 
         def getAllPossibleMoves(state) -> list[Move]:
             """
@@ -140,7 +140,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                return np.count_nonzero(getColumn(state, i, j) == SudokuBoard.empty) == 1
+                return count_nonzero(getColumn(state, i, j) == SudokuBoard.empty) == 1
             
             def completeRow(i, j) -> bool:
                 """
@@ -148,7 +148,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                return np.count_nonzero(getRow(state, i, j) == SudokuBoard.empty) == 1
+                return count_nonzero(getRow(state, i, j) == SudokuBoard.empty) == 1
             
             def completeBlock(i, j) -> bool:
                 """
@@ -156,7 +156,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 @param i: A row value in the range [0, ..., N)
                 @param j: A column value in the range [0, ..., N)
                 """
-                return np.count_nonzero(getBlock(state, i, j) == SudokuBoard.empty) == 1
+                return count_nonzero(getBlock(state, i, j) == SudokuBoard.empty) == 1
 
             # Assign a score based on how many regions are completed
             completedRegions = completeRow(move.i, move.j) + completeColumn(move.i, move.j) + completeBlock(move.i, move.j)
@@ -191,9 +191,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param move: a Move object containing a coordinate and a value
             @param state: a game state containing a SudokuBoard object
             """
-            return np.count_nonzero(getColumn(state, move.i, move.j) == SudokuBoard.empty) == 2 \
-                or np.count_nonzero(getRow(state, move.i, move.j) == SudokuBoard.empty) == 2 \
-                or np.count_nonzero(getBlock(state, move.i, move.j) == SudokuBoard.empty) == 2
+            return count_nonzero(getColumn(state, move.i, move.j) == SudokuBoard.empty) == 2 \
+                or count_nonzero(getRow(state, move.i, move.j) == SudokuBoard.empty) == 2 \
+                or count_nonzero(getBlock(state, move.i, move.j) == SudokuBoard.empty) == 2
         
         def evaluate(state) -> typing.Tuple[Move, int]:
             """
