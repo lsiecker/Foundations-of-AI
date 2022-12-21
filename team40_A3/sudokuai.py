@@ -2,9 +2,6 @@
 #  Software License, (See accompanying file LICENSE or copy at
 #  https://www.gnu.org/licenses/gpl-3.0.txt)
 
-import copy
-import random
-import time
 import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
@@ -15,7 +12,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
     Sudoku AI that computes a move for a given sudoku configuration.
     """
-    def _init_(self):
+    def _init_(self) -> None:
         super()._init_()
 
     def compute_best_move(self, game_state: GameState) -> None:

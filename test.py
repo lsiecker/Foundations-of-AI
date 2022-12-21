@@ -16,7 +16,7 @@ num_cores = 4
 # Create the threadpool executor with the same number of workers as CPU cores
 executor = ThreadPoolExecutor(max_workers=num_cores)
 
-def main():
+def main() -> None:
     results = []
 
     # Next, define the function that you want to run in parallel

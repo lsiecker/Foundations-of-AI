@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "simulate_game.py",
             "args": [
-                "--first", "team40_A3",
+                "--first", "team40_A3_MCTS",
                 "--second", "team40_A2",
                 "--board", "boards/empty-2x3.txt",
                 "--time", "1000"
