@@ -7,9 +7,9 @@
             "request": "launch",
             "program": "simulate_game.py",
             "args": [
-                "--first", "team40_A2",
-                "--second", "greedy_player",
-                "--board", "boards/test-3x3.txt",
+                "--first", "team40_A3",
+                "--second", "team40_A2",
+                "--board", "boards/empty-2x3.txt",
                 "--time", "1000"
             ],
             "console": "integratedTerminal",
