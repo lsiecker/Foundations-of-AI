@@ -121,9 +121,28 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-        # Propose a first move that is possible for all the regions, and not a TabooMove
-        # This is included such that we always propose a move in the smallest amount of time
-        self.propose_move(getAllPossibleMoves(game_state)[0])
+        possibleMoves = getAllPossibleMoves(game_state)
+        
+        certainMoves = self.load()
+        certainMoves = certainMoves if not certainMoves == None else []
+
+        # Filter out the (at most 2) moves already done by you and the opponent since last save
+        certainMoves = [move for move in certainMoves if game_state.board.get(move.i, move.j) == SudokuBoard.empty]
+
+        if len(certainMoves) > 0:
+            # Propose a first move we are sure will lead to a valid solution
+            self.propose_move(certainMoves[0])
+
+            # Fill in all the moves that we are certain about in the board
+            for move in certainMoves:
+                game_state.board.put(move.i, move.j, move.value)
+
+            # Find all possible moves after the certain moves are placed
+            possibleMoves = getAllPossibleMoves(game_state) + certainMoves
+
+            # Remove all certain moves to get back to the actual game state
+            for move in certainMoves:
+                game_state.board.put(move.i, move.j, SudokuBoard.empty)
 
         def storeAllCertainMoves(moves) -> list[Move]:
             """
@@ -148,11 +167,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 if moves[i].i != moves[i-1].i and moves[i].j != moves[i-1].j \
                      or moves[i].i != moves[i+1].i and moves[i].j != moves[i+1].j:
                     certainMoves.append(moves[i])
+            
             if len(certainMoves) > 0:
                 self.save(certainMoves)
             return certainMoves
 
-        certainMoves = storeAllCertainMoves(getAllPossibleMoves(game_state))
+        certainMoves = storeAllCertainMoves(possibleMoves)
 
         def assignScore(move, state) -> int:
             """
@@ -208,7 +228,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         # Propose a new first move, for which we know we will get at least one point
         # (if such a move is available, otherwise propose the same move as before)
-        self.propose_move(usefulMoves(getAllPossibleMoves(game_state), game_state)[0])
+        self.propose_move(usefulMoves(possibleMoves, game_state)[0])
 
         def secondToLast(move, state) -> bool:
             """
