@@ -19,7 +19,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         N = game_state.board.N    
 
-        def checkEmpty(board) -> list[typing.Tuple[int,int]]:
+        def checkEmpty(board) -> list[typing.Tuple[int, int]]:
             """
             Finds all the empty cells of the input board
             @param board: a SudokuBoard stored as array of N**2 entries
@@ -174,6 +174,22 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         certainMoves = storeAllCertainMoves(possibleMoves)
 
+        def getInvalidMoves(moves, state) -> list[Move]:
+            """
+            Get a list of all moves that are certain to make the board insolvable,
+            i.e. the compliment of the list of certain moves,
+            and that are not a taboo move yet
+            @param moves: a list of Move objects to filter
+            @param state: a game state containing a SudokuBoard object
+            """
+            return [Move(move.i, move.j, value) for move in moves
+                        for value in range(1, N+1) if move.value != value and TabooMove(move.i, move.j, value) not in state.taboo_moves]
+
+        # Add a new taboo move to the pool of possible moves
+        invalidMoves = getInvalidMoves(certainMoves, game_state)
+        if len(invalidMoves) > 0:
+            possibleMoves.append(invalidMoves[0])
+
         def assignScore(move, state) -> int:
             """
             Assigns a score to a move using some heuristic
@@ -265,7 +281,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             return best  
 
-        def sortPossibleMoves(state, moves):
+        def sortPossibleMoves(state, moves) -> list[typing.Tuple[Move, int]]:
             """
             Returns the possible moves sorted on their assigned score
             @param state: a game state containing a SudokuBoard object
