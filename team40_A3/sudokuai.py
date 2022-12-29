@@ -125,6 +125,35 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         # This is included such that we always propose a move in the smallest amount of time
         self.propose_move(getAllPossibleMoves(game_state)[0])
 
+        def storeAllCertainMoves(moves) -> list[Move]:
+            """
+            Finds a list of all certain moves and stores it for later use,
+            i.e. finds positions (i,j) for which only one value is possible
+            @param moves: a list of Move objects to filter
+            """
+            if len(moves) <= 1:
+                return moves
+
+            certainMoves = []
+            n = len(moves)
+            for i in range(n):
+                if i == 0:
+                    if moves[i].i != moves[i+1].i and moves[i].j != moves[i+1].j:
+                        certainMoves.append(moves[i])
+                    continue
+                if i == n - 1:
+                    if moves[i].i != moves[i-1].i and moves[i].j != moves[i-1].j:
+                        certainMoves.append(moves[i])
+                    break
+                if moves[i].i != moves[i-1].i and moves[i].j != moves[i-1].j \
+                     or moves[i].i != moves[i+1].i and moves[i].j != moves[i+1].j:
+                    certainMoves.append(moves[i])
+            if len(certainMoves) > 0:
+                self.save(certainMoves)
+            return certainMoves
+
+        certainMoves = storeAllCertainMoves(getAllPossibleMoves(game_state))
+
         def assignScore(move, state) -> int:
             """
             Assigns a score to a move using some heuristic
