@@ -150,7 +150,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             i.e. finds positions (i,j) for which only one value is possible
             @param moves: a list of Move objects to filter
             """
-            if len(moves) <= 1:
+            if len(moves) <= 2:
                 return moves
 
             certainMoves = []
@@ -174,7 +174,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         certainMoves = storeAllCertainMoves(possibleMoves)
 
-        def getInvalidMoves(moves, state) -> list[Move]:
+        def getInsolvableMoves(certainMoves, state) -> list[Move]:
             """
             Get a list of all moves that are certain to make the board insolvable,
             i.e. the compliment of the list of certain moves,
@@ -182,13 +182,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param moves: a list of Move objects to filter
             @param state: a game state containing a SudokuBoard object
             """
-            return [Move(move.i, move.j, value) for move in moves
-                        for value in range(1, N+1) if move.value != value and TabooMove(move.i, move.j, value) not in state.taboo_moves]
-
+            allMoves = getAllPossibleMoves(state)
+            return [move for move in allMoves if move not in certainMoves and move not in state.taboo_moves]
+        
         # Add a new taboo move to the pool of possible moves
-        invalidMoves = getInvalidMoves(certainMoves, game_state)
-        if len(invalidMoves) > 0:
-            possibleMoves.append(invalidMoves[0])
+        insolvableMoves = getInsolvableMoves(possibleMoves, game_state)
+        if len(insolvableMoves) > 0:
+            possibleMoves.append(insolvableMoves[0])
 
         def assignScore(move, state) -> int:
             """
@@ -370,7 +370,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             transposition_table[state] = (best[0], best[1] + current_score, current_depth, alphabeta)
             return best[0], best[1] + current_score
 
-        # Run the main minimax algorithm
-        for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
-            move, value = minimax(game_state, True, depth)
-            self.propose_move(move)
+        empty_squares = game_state.board.squares.count(SudokuBoard.empty)
+        if empty_squares < 2*N and empty_squares % 2 == 0:
+            # Do an insolvable move to (try to) secure the last move, if any exists
+            self.propose_move(possibleMoves[-1])
+        else:
+            # Run the main minimax algorithm
+            for depth in range(0, empty_squares):
+                move, value = minimax(game_state, True, depth)
+                self.propose_move(move)
