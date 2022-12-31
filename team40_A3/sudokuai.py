@@ -15,9 +15,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def _init_(self) -> None:
         super()._init_()
 
+
     def compute_best_move(self, game_state: GameState) -> None:
 
-        N = game_state.board.N    
+        N = game_state.board.N
+
+        def clone(self):
+            return SudokuAI([row[:] for row in self.board])
 
         def checkEmpty(board) -> list[typing.Tuple[int,int]]:
             """
@@ -180,6 +184,52 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         # Propose a new first move, for which we know we will get at least one point
         # (if such a move is available, otherwise propose the same move as before)
         self.propose_move(usefulMoves(getAllPossibleMoves(game_state), game_state)[0])
+
+        def get_valid_values(self, i, j):
+            valid_values = set(range(1, game_state.board.n + 1))
+            for row in self.board:
+                valid_values.discard(row[j])
+            for col in self.board[i]:
+                valid_values.discard(col)
+            region_size = int(game_state.board.n ** 0.5)
+            start_i = (i // region_size) * region_size
+            start_j = (j // region_size) * region_size
+            for k in range(region_size):
+                for l in range(region_size):
+                    valid_values.discard(game_state.board[start_i + k][start_j + l])
+            return list(valid_values)
+
+
+
+        def decision_process(state):
+            if not checkEmpty(state):
+                return []
+            
+            expected_values = []
+
+            for i, j in checkEmpty(state):
+                for value in get_valid_values(i,j):
+                    state_copy = clone(state)
+                    state_copy.board[i][j] = value
+
+
+                    # Recursively solve the puzzle and get the expected value of the future actions
+                    future_actions = decision_process(state_copy)
+                    future_value = sum(a[1] for a in future_actions)
+
+
+                    # Calculate the probability of the current action leading to a solved puzzle
+                    probability = 1 / len(get_valid_values(i, j))
+
+                    # Calculate the expected value of the current action
+                    expected_value = probability * future_value
+
+                    # Add the current action and its expected value to the list of expected values
+                    expected_values.append(((i, j, value), expected_value))
+
+            # Return the action with the highest expected value
+            return max(expected_values, key=lambda x: x[1])
+
 
         def secondToLast(move, state) -> bool:
             """
