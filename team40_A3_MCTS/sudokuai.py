@@ -34,7 +34,9 @@ class Node:
         return len(self.children) == 0
 
     def has_parent(self) -> bool:
-        return self.parent is not None
+        if self.parent is not None:
+            return True
+        return False
 
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
@@ -219,8 +221,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             Finds the best move for the given game state
             @param state: a game state containing a SudokuBoard object
             """
-            best = (Move(0,0,0), float("-inf"))
             moves = usefulMoves(getAllPossibleMoves(state), state)
+            best = (moves[0], 0)
             
             notsecondtolast = []
             for move in moves:
@@ -247,7 +249,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 else:
                     print(child.parent.visits, child.visits)
                     value = child.wins/child.visits + math.sqrt(2*math.log(child.parent.visits/child.visits))
-                if best_value > value:
+                print(value)
+                if best_value < value:
                     best_value = value
                     best_child = child
             return best_child
@@ -268,15 +271,23 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 print("Expand")
                 node.expand(state, getAllPossibleMoves(state))
                 print(node.children)
-                node = select_child_UCT(node)
+                best_node = select_child_UCT(node)
+                print("Selected child: {}", node.children.index(best_node))
 
                 # Simulate
                 result = 0
-                while len(moves := getAllPossibleMoves(state)) != 0:
-                    print("Simulate")
+                isMaximizing = True
+                state.board.put(best_node.move.i, best_node.move.j, best_node.move.value)
+                while len(moves := getAllPossibleMoves(state)) > 1:
+                    print("Simulate | number of possible moves {}", len(moves))
                     move = random.choice(moves)
+                    if len(getAllPossibleMoves(state)) > 0:
+                        if isMaximizing:
+                            result += evaluate(state)[1]
+                        else:
+                            result -= evaluate(state)[1]
+                        isMaximizing = not isMaximizing
                     state.board.put(move.i, move.j, move.value)
-                    result += evaluate(state)[1]
                 state = copy.deepcopy(initial_state)
 
                 # Backpropagate
@@ -285,14 +296,15 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     node.update(result > 0)
                     node = node.parent
 
-            children = root.children
-            best_child = children[0]
-            best_visits = 0
-            for child in children:
-                if best_visits < child.visits:
-                    best_visits = child.visits
-                    best_child = child
-            return best_child.move
+            # children = root.children
+            # best_child = children[0]
+            # best_visits = 0
+            # for child in children:
+            #     if best_visits < child.visits:
+            #         best_visits = child.visits
+            #         best_child = child
+            # return best_child.move
+            return select_child_UCT(root).move
 
-        for i in range(1,80):
+        for i in range(1,4):
             self.propose_move(monte_carlo_tree_search(game_state, i))

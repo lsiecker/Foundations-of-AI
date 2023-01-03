@@ -27,6 +27,7 @@ def main() -> None:
     times = ["0.1", "0.5", "1", "5"]
     players = ["greedy_player", "team40_A1", "team40_A2"]
     boards = ["easy-2x2.txt","easy-3x3.txt","empty-3x3.txt","hard-3x3.txt","random-2x3.txt","random-3x3.txt","random-3x4.txt","random-4x4.txt"]
+    agent = "team40_A3"
     repeats = 5
 
     win = 0
@@ -38,9 +39,9 @@ def main() -> None:
         for time in times:
             for board in boards:
                 for i in range(repeats):
-                    result = executor.submit(run_file, "team40_A3", player, time, board)
+                    result = executor.submit(run_file, agent, player, time, board)
                     results.append(result)
-                    result = executor.submit(run_file, player, "team40_A3", time, board)
+                    result = executor.submit(run_file, player, agent, time, board)
                     results.append(result)
     
     # Get the number of jobs that are still running or pending
