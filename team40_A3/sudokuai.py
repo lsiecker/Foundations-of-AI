@@ -249,6 +249,35 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         # (if such a move is available, otherwise propose the same move as before)
         self.propose_move(usefulMoves(possibleMoves, game_state)[0])
 
+        def decision_process(state, certainmoves):
+            if not checkEmpty(state):
+                return []
+            
+            expected_values = []
+
+            for i, j in checkEmpty(state):
+                for value in certainmoves(i,j):
+                    state_copy = clone(state)
+                    state_copy.board[i][j] = value
+
+
+                    # Recursively solve the puzzle and get the expected value of the future actions
+                    future_actions = decision_process(state_copy)
+                    future_value = sum(a[1] for a in future_actions)
+
+
+                    # Calculate the probability of the current action leading to a solved puzzle
+                    probability = 1 / len(get_valid_values(i, j))
+
+                    # Calculate the expected value of the current action
+                    expected_value = probability * future_value
+
+                    # Add the current action and its expected value to the list of expected values
+                    expected_values.append(((i, j, value), expected_value))
+
+            # Return the action with the highest expected value
+            return max(expected_values, key=lambda x: x[1])
+
         def secondToLast(move, state) -> bool:
             """
             Computes whether doing the given move leaves only one empty square in any region
