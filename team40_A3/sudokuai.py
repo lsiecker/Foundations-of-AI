@@ -15,6 +15,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def _init_(self) -> None:
         super()._init_()
 
+    def clone(self):
+        return SudokuAI([row[:] for row in self.board])
+
     def compute_best_move(self, game_state: GameState) -> None:
 
         N = game_state.board.N    
