@@ -3,10 +3,106 @@
 #  https://www.gnu.org/licenses/gpl-3.0.txt)
 
 import typing
+import torch
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
+
 import numpy as np
-from numpy import array, asarray, count_nonzero, unique
+from numpy import array, asarray, count_nonzero
+
+class SudokuNet(torch.nn.Module):
+    def _init_(self, input_size, hidden_sizes):
+        super(SudokuNet, self).__init__()
+        self.fc1 = torch.nn.Linear(input_size, hidden_sizes[0])
+        self.fc2 = torch.nn.Linear(hidden_sizes[0], hidden_sizes[1])
+        self.fc3 = torch.nn.Linear(hidden_sizes[1], hidden_sizes[2])
+        self.fc4 = torch.nn.Linear(hidden_sizes[2], input_size)
+
+    def forward(self, x):
+        x = torch.nn.functional.relu(self.fc1(x))
+        x = torch.nn.functional.relu(self.fc2(x))
+        x = torch.nn.functional.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x
+
+    def train(self, optimizer, criterion, num_epochs, puzzle: GameState):
+        for epoch in range(num_epochs):
+            # Convert the puzzle to a tensor
+            puzzle_tensor = torch.puzzle_to_tensor(puzzle.board.squares)
+
+            # Zero the gradients
+            optimizer.zero_grad()
+
+            hidden_sizes = [81, 27, 9]
+            input_size = (puzzle.board.N**2)
+
+            model = SudokuNet(input_size, hidden_sizes)
+
+            # Forward pass
+            output = model.forward(puzzle_tensor)
+
+            # Calculate the loss
+            loss = criterion(output, puzzle_tensor)
+
+            # Backward pass
+            loss.backward()
+
+            # Optimize the weights
+            optimizer.step()
+
+class Solve():
+    def _init_(self):
+        super().__init__()
+    
+    def solver(self, puzzle):
+    # Clone the puzzle
+
+        # Convert the puzzle to a tensor
+        puzzle_tensor = torch.Tensor(puzzle.board.squares)
+
+        hidden_sizes = [81, 27, 9, 3]
+        input_size = (puzzle.board.N**2)
+
+        model = SudokuNet(input_size, hidden_sizes)
+
+        # Forward pass
+        output = model.forward(puzzle_tensor)
+
+
+
+        # Convert the output to a numpy array and reshape it to the shape of the puzzle
+        # Returns a new tensor with the same data as output, but that does not require gradient computation.
+        # This is useful when you want to pass a tensor to a function that is not expecting a gradient-tracking tensor.
+        # Then reshapes the tensor converted into a numpy
+        output_array = output.detach().np().reshape((puzzle.shape[0], puzzle.shape[0]))
+
+        optimizer = torch.optim.Adam()
+        criterion = torch.nn.CrossEntropyLoss()
+
+        # Iterate over the cells in the puzzle
+        for i in range(puzzle.shape[0]):
+            for j in range(puzzle.shape[0]):
+                # If the cell is empty, fill it in with the value recommended by the neural network
+                if puzzle[i][j] == 0:
+                    puzzle[i][j] = int(np.argmax(output_array[i][j]) + 1)
+
+                    # Train the neural network on the updated puzzle
+                    output.train(optimizer, criterion, 10, puzzle)
+
+                    hidden_sizes = [81, 27, 9, 3]
+                    input_size = torch.Tensor(output)
+
+                    model = SudokuNet(input_size, hidden_sizes)
+
+                    # Forward pass
+                    output = model.forward(output)
+
+                    # Convert the updated output to a numpy array and reshape it to the shape of the puzzle
+                    output_array = output.detach().np().reshape((puzzle.shape[0], puzzle.shape[0]))
+
+        # Return the solved puzzle
+        return output_array
+
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
@@ -15,14 +111,16 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def _init_(self) -> None:
         super()._init_()
 
+
+
     def compute_best_move(self, game_state: GameState) -> None:
 
         N = game_state.board.N
-        
-        def clone(state):
-            return SudokuAI([row[:] for row in state.board])    
 
-        def checkEmpty(board) -> list[typing.Tuple[int, int]]:
+        def clone(self):
+            return SudokuAI([row[:] for row in self.board])
+
+        def checkEmpty(board) -> list[typing.Tuple[int,int]]:
             """
             Finds all the empty cells of the input board
             @param board: a SudokuBoard stored as array of N**2 entries
@@ -124,72 +222,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return [Move(cell[0], cell[1], value) for cell in checkEmpty(state.board)
                         for value in range(1, N+1) if possible(cell[0], cell[1], value)]
 
-        possibleMoves = getAllPossibleMoves(game_state)
-        
-        certainMoves = self.load()
-        certainMoves = certainMoves if not certainMoves == None else []
-
-        # Filter out the (at most 2) moves already done by you and the opponent since last save
-        certainMoves = [move for move in certainMoves if game_state.board.get(move.i, move.j) == SudokuBoard.empty]
-
-        if len(certainMoves) > 0:
-            # Propose a first move we are sure will lead to a valid solution
-            self.propose_move(certainMoves[0])
-
-            # Fill in all the moves that we are certain about in the board
-            for move in certainMoves:
-                game_state.board.put(move.i, move.j, move.value)
-
-            # Find all possible moves after the certain moves are placed
-            possibleMoves = getAllPossibleMoves(game_state) + certainMoves
-
-            # Remove all certain moves to get back to the actual game state
-            for move in certainMoves:
-                game_state.board.put(move.i, move.j, SudokuBoard.empty)
-
-        def storeAllCertainMoves(moves, N) -> list[Move]:
-            """
-            Finds a list of all certain moves and stores it for later use,
-            i.e. finds positions (i,j) for which only one value is possible
-            @param moves: a list of Move objects to filter
-            @param N: the dimensions of the sudoku
-            """
-            if len(moves) <= 2:
-                return moves
-
-            # Convert every move to an index in the 1D array
-            indexedMoves = list(map(lambda k: k.i * N + k.j, moves))
-
-            # Find all indices that occur only once in the list
-            number, index, count = unique(indexedMoves, return_index=True, return_counts=True)
-            certainIndices = [i[1] for i in set(zip(number, index, count)) if i[2] == 1]
-
-            # Get all moves whose index occurs only once from the input list
-            certainMoves = []
-            for index in certainIndices:
-                certainMoves.append(moves[index])
-            
-            if len(certainMoves) > 0:
-                self.save(certainMoves)
-            return certainMoves
-
-        certainMoves = storeAllCertainMoves(possibleMoves, N)
-
-        def getInsolvableMoves(knownMoves, state) -> list[Move]:
-            """
-            Get a list of all moves that are certain to make the board insolvable,
-            i.e. the compliment of the list of certain moves,
-            and that are not a taboo move yet
-            @param moves: a list of Move objects to filter
-            @param state: a game state containing a SudokuBoard object
-            """
-            allMoves = getAllPossibleMoves(state)
-            return [move for move in allMoves if move not in knownMoves and move not in state.taboo_moves]
-        
-        # Add a new taboo move to the pool of possible moves
-        insolvableMoves = getInsolvableMoves(possibleMoves, game_state)
-        if len(insolvableMoves) > 0:
-            possibleMoves.append(insolvableMoves[0])
+        # Propose a first move that is possible for all the regions, and not a TabooMove
+        # This is included such that we always propose a move in the smallest amount of time
+        self.propose_move(getAllPossibleMoves(game_state)[0])
 
         def assignScore(move, state) -> int:
             """
@@ -245,43 +280,53 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         # Propose a new first move, for which we know we will get at least one point
         # (if such a move is available, otherwise propose the same move as before)
-        self.propose_move(usefulMoves(possibleMoves, game_state)[0])
-        
-        def decision_process(state, certainmoves):
+        self.propose_move(usefulMoves(getAllPossibleMoves(game_state), game_state)[0])
 
-            if not checkEmpty(state):
-                return []
+        # def get_valid_values(self, i, j):
+        #     valid_values = set(range(1, game_state.board.n + 1))
+        #     for row in self.board:
+        #         valid_values.discard(row[j])
+        #     for col in self.board[i]:
+        #         valid_values.discard(col)
+        #     region_size = int(game_state.board.n ** 0.5)
+        #     start_i = (i // region_size) * region_size
+        #     start_j = (j // region_size) * region_size
+        #     for k in range(region_size):
+        #         for l in range(region_size):
+        #             valid_values.discard(game_state.board[start_i + k][start_j + l])
+        #     return list(valid_values)
+
+
+
+        # def decision_process(state):
+        #     if not checkEmpty(state):
+        #         return []
             
-            expected_values = []
-            
-            state_copy = clone(state)
-            for move in certainmoves:
-                state_copy.board[move.i][move.j] = move.value
+        #     expected_values = []
 
-            possibilities = 0
-
-            state_copy = np.asarray(state_copy)
-
-            for i, j in range(state_copy):
-                if state_copy[i][j] == SudokuBoard.empty:
-
-                    # Recursively solve the puzzle and get the expected value of the future actions
-                    future_actions = decision_process(state_copy)
-                    future_value = sum(a[1] for a in future_actions)
+        #     for i, j in checkEmpty(state):
+        #         for value in get_valid_values(i,j):
+        #             state_copy = clone(state)
+        #             state_copy.board[i][j] = value
 
 
-                    # Calculate the probability of the current action leading to a solved puzzle
-                    possibilities += certainmoves(i,j)
-                    probability = 1 / possibilities
+        #             # Recursively solve the puzzle and get the expected value of the future actions
+        #             future_actions = decision_process(state_copy)
+        #             future_value = sum(a[1] for a in future_actions)
 
-                    # Calculate the expected value of the current action
-                    expected_value = probability * future_value
 
-                    # Add the current action and its expected value to the list of expected values
-                    expected_values.append(((i, j), expected_value))
+        #             # Calculate the probability of the current action leading to a solved puzzle
+        #             probability = 1 / len(get_valid_values(i, j))
 
-            # Return the action with the highest expected value
-            return max(expected_values, key=lambda x: x[1])
+        #             # Calculate the expected value of the current action
+        #             expected_value = probability * future_value
+
+        #             # Add the current action and its expected value to the list of expected values
+        #             expected_values.append(((i, j, value), expected_value))
+
+        #     # Return the action with the highest expected value
+        #     return max(expected_values, key=lambda x: x[1])
+
 
         def secondToLast(move, state) -> bool:
             """
@@ -318,7 +363,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             return best  
 
-        def sortPossibleMoves(state, moves) -> list[typing.Tuple[Move, int]]:
+        def sortPossibleMoves(state, moves):
             """
             Returns the possible moves sorted on their assigned score
             @param state: a game state containing a SudokuBoard object
@@ -327,6 +372,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             moves_with_score = [(move, assignScore(move, state)) for move in moves]
             moves_with_score.sort(key=lambda a: -a[1])
             return moves_with_score
+
+        def neuralNetworkSolver(state):
+            solved = Solve().solver(state)
+            return solved
 
         def minimax(state, isMaximizingPlayer, max_depth, current_depth = 0, current_score = 0, transposition_table = {}, alpha=float("-inf"), beta=float("inf")) -> typing.Tuple[Move, int]:
             """
@@ -341,21 +390,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param beta: the best value the minimizing player can guarantee at the current level or higher
             """
             alphaOrig = alpha
-
-            if len(certainMoves) > 0:
-                # Fill in all the moves that we are certain about in the board
-                for move in certainMoves:
-                    state.board.put(move.i, move.j, move.value)
-
-                moves = getAllPossibleMoves(state)
-
-                # Remove all certain moves to get back to the actual game state
-                for move in certainMoves:
-                    game_state.board.put(move.i, move.j, SudokuBoard.empty)
-
-                possibleMoves = sortPossibleMoves(state, moves + certainMoves)
-            else:
-                possibleMoves = sortPossibleMoves(state, getAllPossibleMoves(state))
+            possibleMoves = sortPossibleMoves(state, getAllPossibleMoves(state))
 
             # If we have already seen the current state of the gameboard in a previous computation
             if state in transposition_table:
@@ -421,8 +456,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             transposition_table[state] = (best[0], best[1] + current_score, current_depth, alphabeta)
             return best[0], best[1] + current_score
 
-        empty_squares = game_state.board.squares.count(SudokuBoard.empty)
         # Run the main minimax algorithm
-        for depth in range(0, empty_squares):
+        for depth in range(0, game_state.board.squares.count(SudokuBoard.empty)):
             move, value = minimax(game_state, True, depth)
+            solved  = neuralNetworkSolver(game_state)
+            print(solved.shape())
             self.propose_move(move)
