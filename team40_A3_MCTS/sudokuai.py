@@ -252,7 +252,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
                     value = child.wins/child.visits + math.sqrt(2*math.log(child.parent.visits/child.visits))
                 
-                print(value)
                 if best_value < value:
                     best_value = value
                     best_child = child
