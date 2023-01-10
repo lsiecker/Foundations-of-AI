@@ -15,18 +15,18 @@ import competitive_sudoku.sudokuai
 
 
 class Node:
-    def __init__(self, move, parent) -> None:
+    def __init__(self, move, parent, turn) -> None:
         self.move, self.parent, self.children = move, parent, []
         self.wins, self.visits = 0, 0
+        self.my_turn = True
 
     def expand(self, state, possibleMoves) -> None:
         if possibleMoves != None:
             for move in possibleMoves:
-                child = Node(move, self)  # New child node
+                child = Node(move, self, not self.my_turn)  # New child node
                 self.children.append(child)
 
     def update(self, win) -> None:
-        self.visits += 1
         if win:
             self.wins += 1
 
@@ -241,14 +241,17 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         def select_child_UCT(node) -> Node:
             best_child = node.children[0]
             best_value = -9999
+
             for child in node.children:
                 if child.visits == 0:
                     value = 9999
-                elif child.parent.visits == 0:
-                    value = 0
                 else:
-                    print(child.parent.visits, child.visits)
+                    value = child.wins/child.visits
+                    if not node.my_turn:
+                        value = 1 - value
+
                     value = child.wins/child.visits + math.sqrt(2*math.log(child.parent.visits/child.visits))
+                
                 print(value)
                 if best_value < value:
                     best_value = value
@@ -256,49 +259,56 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return best_child
 
         def monte_carlo_tree_search(initial_state, iterations) -> Move:
-            root = Node(None, None)
+            root = Node(None, None, True)
 
             for _ in range(iterations):
                 node, state = root, copy.deepcopy(initial_state)
 
                 # Select
                 while not node.is_leaf():
-                    print("Select")
+                    # print("Select")
                     node = select_child_UCT(node)
                     state.board.put(node.move.i, node.move.j, node.move.value)
 
                 # Expand
-                print("Expand")
-                node.expand(state, getAllPossibleMoves(state))
-                print(node.children)
-                best_node = select_child_UCT(node)
-                print("Selected child: {}", node.children.index(best_node))
+                # print("Expand")
+                node.expand(state, usefulMoves(getAllPossibleMoves(state), state)[:10])
+                # print(node.children)
+                if node.children:
+                    best_node = select_child_UCT(node)
+                    # print("Selected child:", node.children.index(best_node))
+
+                if node.is_leaf() and state.board.squares.count(SudokuBoard.empty) > 0:
+                    break
 
                 # Simulate
-                result = 0
-                isMaximizing = True
-                state.board.put(best_node.move.i, best_node.move.j, best_node.move.value)
-                while len(moves := getAllPossibleMoves(state)) > 1:
-                    print("Simulate | number of possible moves {}", len(moves))
+                if node.children:
+                    state.board.put(best_node.move.i, best_node.move.j, best_node.move.value)
+                agent_score = state.scores[0]
+                opponent_score = state.scores[1]
+                while len(moves := usefulMoves(getAllPossibleMoves(state), state)) > 1:
+                    # print("Simulate | number of possible moves ", len(moves))
                     move = random.choice(moves)
-                    if len(getAllPossibleMoves(state)) > 0:
-                        if isMaximizing:
-                            result += evaluate(state)[1]
-                        else:
-                            result -= evaluate(state)[1]
-                        isMaximizing = not isMaximizing
+                    value = assignScore(move, state)
+                    if best_node.my_turn:
+                        agent_score += value
+                    else:
+                        opponent_score += value
                     state.board.put(move.i, move.j, move.value)
-                state = copy.deepcopy(initial_state)
 
                 # Backpropagate
-                while node.has_parent():
-                    print("Backpropagate")
-                    node.update(result > 0)
-                    node = node.parent
+                while node:
+                    node.visits += 1
+                    if node.has_parent():
+                        # print("Backpropagate")
+                        node.update(agent_score > opponent_score)
+                        node = node.parent
+                    else:
+                        break
 
             # children = root.children
             # best_child = children[0]
-            # best_visits = 0
+            # best_visits = 9999
             # for child in children:
             #     if best_visits < child.visits:
             #         best_visits = child.visits
@@ -306,5 +316,5 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             # return best_child.move
             return select_child_UCT(root).move
 
-        for i in range(1,4):
+        for i in range(1,25):
             self.propose_move(monte_carlo_tree_search(game_state, i))

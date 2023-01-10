@@ -25,9 +25,11 @@ def main() -> None:
             return (player_1, player_2, time, board, res.splitlines()[-1])
 
     times = ["0.1", "0.5", "1", "5"]
-    players = ["greedy_player", "team40_A1", "team40_A2"]
+    # players = ["greedy_player", "team40_A1", "team40_A2"]
+    players = ["greedy_player"]
     boards = ["easy-2x2.txt","easy-3x3.txt","empty-3x3.txt","hard-3x3.txt","random-2x3.txt","random-3x3.txt","random-3x4.txt","random-4x4.txt"]
-    agent = "team40_A3"
+    boards = ["easy-2x2.txt", "random-2x3.txt","random-3x3.txt"]
+    agent = "team40_A3_MCTS"
     repeats = 5
 
     win = 0
@@ -55,7 +57,7 @@ def main() -> None:
         # Get the results from the function calls
         for result in results:
             tqdm.write(str(result.result()))
-            if result.result()[0] == "team40_A3":
+            if result.result()[0] == agent:
                 if result.result()[4].find("Player 1") != -1:
                     win += 1
                 elif result.result()[4].find("draw") != -1:
