@@ -6,7 +6,7 @@ import typing
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 import competitive_sudoku.sudokuai
 
-from numpy import array, asarray, count_nonzero
+from numpy import array, asarray, count_nonzero, unique
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     """
@@ -144,37 +144,35 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             for move in certainMoves:
                 game_state.board.put(move.i, move.j, SudokuBoard.empty)
 
-        def storeAllCertainMoves(moves) -> list[Move]:
+        def storeAllCertainMoves(moves, N) -> list[Move]:
             """
             Finds a list of all certain moves and stores it for later use,
             i.e. finds positions (i,j) for which only one value is possible
             @param moves: a list of Move objects to filter
+            @param N: the dimensions of the sudoku
             """
             if len(moves) <= 2:
                 return moves
 
+            # Convert every move to an index in the 1D array
+            indexedMoves = list(map(lambda k: k.i * N + k.j, moves))
+
+            # Find all indices that occur only once in the list
+            number, index, count = unique(indexedMoves, return_index=True, return_counts=True)
+            certainIndices = [i[1] for i in set(zip(number, index, count)) if i[2] == 1]
+
+            # Get all moves whose index occurs only once from the input list
             certainMoves = []
-            n = len(moves)
-            for i in range(n):
-                if i == 0:
-                    if moves[i].i != moves[i+1].i and moves[i].j != moves[i+1].j:
-                        certainMoves.append(moves[i])
-                    continue
-                if i == n - 1:
-                    if moves[i].i != moves[i-1].i and moves[i].j != moves[i-1].j:
-                        certainMoves.append(moves[i])
-                    break
-                if moves[i].i != moves[i-1].i and moves[i].j != moves[i-1].j \
-                     or moves[i].i != moves[i+1].i and moves[i].j != moves[i+1].j:
-                    certainMoves.append(moves[i])
+            for index in certainIndices:
+                certainMoves.append(moves[index])
             
             if len(certainMoves) > 0:
                 self.save(certainMoves)
             return certainMoves
 
-        certainMoves = storeAllCertainMoves(possibleMoves)
+        certainMoves = storeAllCertainMoves(possibleMoves, N)
 
-        def getInsolvableMoves(certainMoves, state) -> list[Move]:
+        def getInsolvableMoves(knownMoves, state) -> list[Move]:
             """
             Get a list of all moves that are certain to make the board insolvable,
             i.e. the compliment of the list of certain moves,
@@ -183,7 +181,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param state: a game state containing a SudokuBoard object
             """
             allMoves = getAllPossibleMoves(state)
-            return [move for move in allMoves if move not in certainMoves and move not in state.taboo_moves]
+            return [move for move in allMoves if move not in knownMoves and move not in state.taboo_moves]
         
         # Add a new taboo move to the pool of possible moves
         insolvableMoves = getInsolvableMoves(possibleMoves, game_state)
@@ -304,7 +302,21 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             @param beta: the best value the minimizing player can guarantee at the current level or higher
             """
             alphaOrig = alpha
-            possibleMoves = sortPossibleMoves(state, getAllPossibleMoves(state))
+
+            if len(certainMoves) > 0:
+                # Fill in all the moves that we are certain about in the board
+                for move in certainMoves:
+                    state.board.put(move.i, move.j, move.value)
+
+                moves = getAllPossibleMoves(state)
+
+                # Remove all certain moves to get back to the actual game state
+                for move in certainMoves:
+                    game_state.board.put(move.i, move.j, SudokuBoard.empty)
+
+                possibleMoves = sortPossibleMoves(state, moves + certainMoves)
+            else:
+                possibleMoves = sortPossibleMoves(state, getAllPossibleMoves(state))
 
             # If we have already seen the current state of the gameboard in a previous computation
             if state in transposition_table:
@@ -371,11 +383,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return best[0], best[1] + current_score
 
         empty_squares = game_state.board.squares.count(SudokuBoard.empty)
-        if empty_squares < 2*N and empty_squares % 2 == 0:
-            # Do an insolvable move to (try to) secure the last move, if any exists
-            self.propose_move(possibleMoves[-1])
-        else:
-            # Run the main minimax algorithm
-            for depth in range(0, empty_squares):
-                move, value = minimax(game_state, True, depth)
-                self.propose_move(move)
+        # Run the main minimax algorithm
+        for depth in range(0, empty_squares):
+            move, value = minimax(game_state, True, depth)
+            self.propose_move(move)
