@@ -20,7 +20,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         N = game_state.board.N
         
         def clone(state):
-            return SudokuAI([row[:] for row in state.board])    
+            row = []
+            for v, r in range(N):
+                row.append(state.board.get(v, r))
+            return row    
 
         def checkEmpty(board) -> list[typing.Tuple[int, int]]:
             """
@@ -249,14 +252,14 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         
         def decision_process(state, certainmoves):
 
-            if not checkEmpty(state):
+            if not checkEmpty(state.board):
                 return []
             
             expected_values = []
             
             state_copy = clone(state)
             for move in certainmoves:
-                state_copy.board[move.i][move.j] = move.value
+                state_copy[move.i][move.j] = move.value
 
             possibilities = 0
 
@@ -312,9 +315,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 notsecondtolast.extend(moves)
 
             for move in notsecondtolast:
-                value = assignScore(move, state)
-                if value > best[1]:
-                    best = (move, value)
+                if move == decision_process(state, certainMoves):
+                    value = assignScore(move, state)
+                    if value > best[1]:
+                        best = (move, value)
 
             return best  
 
