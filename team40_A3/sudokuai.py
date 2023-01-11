@@ -174,19 +174,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         def getInsolvableMoves(knownMoves, state) -> list[Move]:
             """
-            Get a list of all moves that are certain to make the board insolvable,
-            i.e. the compliment of the list of certain moves,
-            and that are not a taboo move yet
-            @param moves: a list of Move objects to filter
+            Get a list of moves that are certain to make the board insolvable,
+            and that are not a previously known taboo move yet
+            @param knownMoves: a list of Move objects to filter
             @param state: a game state containing a SudokuBoard object
             """
             allMoves = getAllPossibleMoves(state)
             return [move for move in allMoves if move not in knownMoves and move not in state.taboo_moves]
-        
-        # Add a new taboo move to the pool of possible moves
-        insolvableMoves = getInsolvableMoves(possibleMoves, game_state)
-        if len(insolvableMoves) > 0:
-            possibleMoves.append(insolvableMoves[0])
 
         def assignScore(move, state) -> int:
             """
@@ -312,7 +306,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
                 # Remove all certain moves to get back to the actual game state
                 for move in certainMoves:
-                    game_state.board.put(move.i, move.j, SudokuBoard.empty)
+                    state.board.put(move.i, move.j, SudokuBoard.empty)
 
                 possibleMoves = sortPossibleMoves(state, moves + certainMoves)
             else:
@@ -383,6 +377,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             return best[0], best[1] + current_score
 
         empty_squares = game_state.board.squares.count(SudokuBoard.empty)
+        
+        if empty_squares % 2 == 0:
+            # Do an insolvable move to (try to) force the last move
+            invalidMoves = getInsolvableMoves(possibleMoves, game_state)
+            if len(invalidMoves) > 0:
+                self.propose_move(invalidMoves[0])
+                return
         # Run the main minimax algorithm
         for depth in range(0, empty_squares):
             move, value = minimax(game_state, True, depth)
