@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Get the number of CPU cores on the system
 num_cores = os.cpu_count()
 print(num_cores)
-num_cores = 4
+num_cores = 6
 
 # Create the threadpool executor with the same number of workers as CPU cores
 executor = ThreadPoolExecutor(max_workers=num_cores)
@@ -24,11 +24,12 @@ def main() -> None:
             res = os.popen('python simulate_game.py --first ' + player_1 + ' --second ' + player_2 + ' --time ' + time + ' --board boards\\' + board).read()
             return (player_1, player_2, time, board, res.splitlines()[-1])
 
-    times = ["0.1", "0.5", "1", "5"]
+    # times = ["0.1", "0.5", "1", "5"]
+    times = ["5"]
     # players = ["greedy_player", "team40_A1", "team40_A2"]
-    players = ["greedy_player"]
+    players = ["team40_A2"]
     boards = ["easy-2x2.txt","easy-3x3.txt","empty-3x3.txt","hard-3x3.txt","random-2x3.txt","random-3x3.txt","random-3x4.txt","random-4x4.txt"]
-    boards = ["easy-2x2.txt", "random-2x3.txt","random-3x3.txt"]
+    # boards = ["easy-2x2.txt","easy-3x3.txt","empty-3x3.txt","hard-3x3.txt","random-2x3.txt","random-3x3.txt"]
     agent = "team40_A3_MCTS"
     repeats = 5
 
@@ -53,7 +54,7 @@ def main() -> None:
     pbar = tqdm(total=len(results), desc="Processing Results", leave=True)
 
     # Open the file for writing
-    with open('results_A3.txt', 'w') as outfile:
+    with open('final_results_A3_4.txt', 'w') as outfile:
         # Get the results from the function calls
         for result in results:
             tqdm.write(str(result.result()))

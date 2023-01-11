@@ -6,7 +6,6 @@ import array
 import copy
 import math
 import random
-import time
 import typing
 
 from numpy import asarray, count_nonzero
@@ -18,22 +17,37 @@ class Node:
     def __init__(self, move, parent, turn) -> None:
         self.move, self.parent, self.children = move, parent, []
         self.wins, self.visits = 0, 0
-        self.my_turn = True
+        self.my_turn = turn
 
     def expand(self, state, possibleMoves) -> None:
+        """
+        Expands the gametree with new child nodes for all possible moves
+        @param state: a game state containing a SudokuBoard object
+        @param possibleMoves: a list of the possible moves for that gamestate
+        """
         if possibleMoves != None:
             for move in possibleMoves:
                 child = Node(move, self, not self.my_turn)  # New child node
-                self.children.append(child)
+                self.children.append(child)                 # New child is appended to the current children.
 
     def update(self, win) -> None:
+        """
+        Updates the amount of wins for the node
+        @param win: boolean that determines if there was a win or not.
+        """
         if win:
             self.wins += 1
 
     def is_leaf(self) -> bool:
+        """
+        Function that returns a boolean to state if the current node has explored children or not.
+        """
         return len(self.children) == 0
 
     def has_parent(self) -> bool:
+        """
+        Function that returns a boolean that states if the current node has a parent.
+        """
         if self.parent is not None:
             return True
         return False
@@ -216,77 +230,70 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 or count_nonzero(getRow(state, move.i, move.j) == SudokuBoard.empty) == 2 \
                 or count_nonzero(getBlock(state, move.i, move.j) == SudokuBoard.empty) == 2
 
-        def evaluate(state) -> typing.Tuple[Move, int]:
-            """
-            Finds the best move for the given game state
-            @param state: a game state containing a SudokuBoard object
-            """
-            moves = usefulMoves(getAllPossibleMoves(state), state)
-            best = (moves[0], 0)
-            
-            notsecondtolast = []
-            for move in moves:
-                if not secondToLast(move, state):
-                    notsecondtolast.append(move)
-            
-            if len(notsecondtolast) <= 0:
-                notsecondtolast.extend(moves)
-
-            for move in notsecondtolast:
-                value = assignScore(move, state)
-                if value > best[1]:
-                    best = (move, value)
-            return best  
-
         def select_child_UCT(node) -> Node:
+            """
+            Function that returns the best child based on the UCT property
+            @param: node for which you want to know the best child.
+            """
             best_child = node.children[0]
             best_value = -9999
 
+            # Loop through the children
             for child in node.children:
                 if child.visits == 0:
                     value = 9999
                 else:
                     value = child.wins/child.visits
+                    # If it is the opponents turn, turn around the value
                     if not node.my_turn:
                         value = 1 - value
-
-                    value = child.wins/child.visits + math.sqrt(2*math.log(child.parent.visits/child.visits))
+                    else:
+                        # UCB calculation
+                        value = child.wins/child.visits + math.sqrt(2*math.log(child.parent.visits/child.visits))
                 
+                # Determine best child and return this child
                 if best_value < value:
                     best_value = value
                     best_child = child
             return best_child
 
         def monte_carlo_tree_search(initial_state, iterations) -> Move:
+            """
+            The MCTS function that constists of 4 phases: Selection, Expansion, Simulation and Backpropagation
+            @param initial_state: the game_state that is the initial for the tree
+            @param iterations: the number of iterations the algorithm should go through before returning a move
+            """
+
+            # Root initialization
             root = Node(None, None, True)
 
             for _ in range(iterations):
+                # For every iteration, get a node and the unmodified initial state
                 node, state = root, copy.deepcopy(initial_state)
 
-                # Select
+                ### Selection phase ###
                 while not node.is_leaf():
-                    # print("Select")
                     node = select_child_UCT(node)
                     state.board.put(node.move.i, node.move.j, node.move.value)
 
-                # Expand
-                # print("Expand")
+                ### Expansion phase ###
                 node.expand(state, usefulMoves(getAllPossibleMoves(state), state)[:10])
-                # print(node.children)
                 if node.children:
                     best_node = select_child_UCT(node)
-                    # print("Selected child:", node.children.index(best_node))
 
                 if node.is_leaf() and state.board.squares.count(SudokuBoard.empty) > 0:
                     break
 
-                # Simulate
+                ### Simulation phase ###
                 if node.children:
                     state.board.put(best_node.move.i, best_node.move.j, best_node.move.value)
+
+                # Get current scores of the players
                 agent_score = state.scores[0]
                 opponent_score = state.scores[1]
+
+                # As long as there are moves, make the moves. If no moves available, game has ended.
                 while len(moves := usefulMoves(getAllPossibleMoves(state), state)) > 1:
-                    # print("Simulate | number of possible moves ", len(moves))
                     move = random.choice(moves)
                     value = assignScore(move, state)
                     if best_node.my_turn:
@@ -295,24 +302,16 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                         opponent_score += value
                     state.board.put(move.i, move.j, move.value)
 
-                # Backpropagate
+                ### Backpropagatin phase ###
                 while node:
                     node.visits += 1
                     if node.has_parent():
-                        # print("Backpropagate")
                         node.update(agent_score > opponent_score)
                         node = node.parent
                     else:
                         break
 
-            # children = root.children
-            # best_child = children[0]
-            # best_visits = 9999
-            # for child in children:
-            #     if best_visits < child.visits:
-            #         best_visits = child.visits
-            #         best_child = child
-            # return best_child.move
+            # Return the move of the best child in the root
             return select_child_UCT(root).move
 
         for i in range(1,25):
